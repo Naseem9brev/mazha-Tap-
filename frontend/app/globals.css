@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 45 30% 97%;
+    --foreground: 25 25% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 25 25% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 25 25% 12%;
+    --primary: 142 40% 28%;
+    --primary-foreground: 45 30% 97%;
+    --secondary: 38 60% 92%;
+    --secondary-foreground: 25 25% 12%;
+    --muted: 45 20% 93%;
+    --muted-foreground: 25 15% 45%;
+    --accent: 38 80% 88%;
+    --accent-foreground: 25 25% 12%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 45 20% 86%;
+    --input: 45 20% 86%;
+    --ring: 142 40% 28%;
+    --radius: 0.75rem;
+
+    /* Custom brand colors */
+    --tap-green: 142 52% 35%;
+    --no-tap-red: 0 72% 51%;
+    --delay-amber: 38 92% 50%;
+    --rain-blue: 210 80% 56%;
+  }
+
+  .dark {
+    --background: 25 25% 8%;
+    --foreground: 45 30% 95%;
+    --card: 25 20% 12%;
+    --card-foreground: 45 30% 95%;
+    --popover: 25 20% 12%;
+    --popover-foreground: 45 30% 95%;
+    --primary: 142 45% 45%;
+    --primary-foreground: 25 25% 8%;
+    --secondary: 25 20% 18%;
+    --secondary-foreground: 45 30% 95%;
+    --muted: 25 20% 18%;
+    --muted-foreground: 45 15% 60%;
+    --accent: 38 70% 30%;
+    --accent-foreground: 45 30% 95%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 25 20% 22%;
+    --input: 25 20% 22%;
+    --ring: 142 45% 45%;
+    --radius: 0.75rem;
+    --tap-green: 142 52% 45%;
+    --no-tap-red: 0 72% 61%;
+    --delay-amber: 38 92% 60%;
+    --rain-blue: 210 80% 66%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
