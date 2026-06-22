@@ -2,13 +2,13 @@
 
 export function LoadingState({ message }: { message?: string }) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
+    <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 rounded-[1.5rem] border border-stone-200 bg-white/70 p-8 text-center">
       <div className="relative">
-        <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+        <div className="h-14 w-14 rounded-full border-4 border-emerald-950/15 border-t-emerald-950 animate-spin" />
       </div>
-      <div className="text-center">
-        <p className="font-medium text-foreground">{message ?? "Checking the skies..."}</p>
-        <p className="text-sm text-muted-foreground mt-1">Fetching weather for your plantation</p>
+      <div>
+        <p className="font-lora text-2xl font-black text-stone-950">{message ?? "Checking the skies..."}</p>
+        <p className="mt-2 text-sm font-semibold text-stone-500">Fetching weather for your plantation</p>
       </div>
     </div>
   );

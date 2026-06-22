@@ -2,6 +2,7 @@
 
 import TinderCard from "react-tinder-card";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Copy, Leaf, Phone, Share2, Sparkles, Sprout, Users, X } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
@@ -565,36 +566,91 @@ function RainDecisionTool() {
   };
 
   if (appState === "onboarding") return <OnboardingForm onComplete={handleOnboardingComplete} />;
-  if (appState === "loading") return <LoadingState />;
+  if (appState === "loading") {
+    return (
+      <RainDecisionFrame>
+        <LoadingState />
+      </RainDecisionFrame>
+    );
+  }
   if (appState === "error") {
-    return <ErrorState message={error ?? "Failed to get recommendation"} onRetry={() => plantation && runDecision(plantation)} onReset={handleReset} />;
+    return (
+      <RainDecisionFrame>
+        <ErrorState message={error ?? "Failed to get recommendation"} onRetry={() => plantation && runDecision(plantation)} onReset={handleReset} />
+      </RainDecisionFrame>
+    );
   }
 
   if (appState === "result" && decision) {
     return (
-      <div className="mx-auto w-full max-w-lg rounded-[2rem] bg-background shadow-2xl">
-        <div className="border-b border-border bg-card/50 backdrop-blur-sm">
-          <div className="px-4 py-3 flex items-center justify-between">
-            <h2 className="font-lora font-bold text-lg text-primary">mazha Tap—</h2>
-            <span className="text-xs text-muted-foreground">
-              {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
-            </span>
+      <RainDecisionFrame eyebrow="Today’s verdict" title={locationName || "Your plantation"}>
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-800">Rain recommendation</p>
+            <h2 className="font-lora text-3xl font-black text-stone-950">{locationName || "Your plantation"}</h2>
           </div>
+          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-stone-900">
+            {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
+          </span>
         </div>
-        <div className="px-4 py-6">
-          <RecommendationCard
-            decision={decision}
-            locationName={locationName}
-            onRefresh={() => plantation && runDecision(plantation, true)}
-            onReset={handleReset}
-            isRefreshing={isRefreshing}
-          />
-        </div>
-      </div>
+        <RecommendationCard
+          decision={decision}
+          locationName={locationName}
+          onRefresh={() => plantation && runDecision(plantation, true)}
+          onReset={handleReset}
+          isRefreshing={isRefreshing}
+        />
+      </RainDecisionFrame>
     );
   }
 
   return null;
+}
+
+function RainDecisionFrame({
+  children,
+  eyebrow = "Rain decision",
+  title = "Plan the morning tap",
+}: {
+  children: ReactNode;
+  eyebrow?: string;
+  title?: string;
+}) {
+  return (
+    <section className="grid flex-1 gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
+      <aside className="rounded-[2rem] border border-white/80 bg-emerald-950 p-5 text-amber-50 shadow-xl">
+        <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-200">{eyebrow}</p>
+        <h2 className="mt-2 font-lora text-3xl font-black">{title}</h2>
+        <p className="mt-3 text-sm leading-6 text-amber-50/80">
+          A warm, weather-aware companion for deciding whether to tap before the morning cut.
+        </p>
+        <div className="mt-6 space-y-3">
+          <div className="rounded-2xl bg-white/10 p-4">
+            <Leaf className="mb-3 h-5 w-5 text-amber-200" />
+            <p className="text-sm font-bold">Weather-aware</p>
+            <p className="mt-1 text-xs leading-5 text-amber-50/70">Forecast, plantation size, tree age, and tapping system feed the verdict.</p>
+          </div>
+          <div className="rounded-2xl bg-white/10 p-4">
+            <DropletsIcon />
+            <p className="text-sm font-bold">Built for rubber growers</p>
+            <p className="mt-1 text-xs leading-5 text-amber-50/70">Use this mode before sending workers out for the early-morning cut.</p>
+          </div>
+        </div>
+      </aside>
+      <div className="rounded-[2rem] border border-white/80 bg-white/85 p-5 shadow-xl backdrop-blur sm:p-6">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function DropletsIcon() {
+  return (
+    <svg className="mb-3 h-5 w-5 text-amber-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3.5S6 10.2 6 14.5a6 6 0 0 0 12 0C18 10.2 12 3.5 12 3.5Z" />
+      <path d="M8.5 14.5a3.5 3.5 0 0 0 7 0" />
+    </svg>
+  );
 }
 
 function validateTapper(form: TapperProfileInput): string[] {
@@ -635,7 +691,7 @@ function MultiSelect({ title, options, values, onChange }: { title: string; opti
   );
 }
 
-function Label({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
+function Label({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
   return (
     <label className={cn("block", className)}>
       <span className="mb-2 block text-sm font-black text-stone-800">{title}</span>
