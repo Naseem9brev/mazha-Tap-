@@ -8,7 +8,7 @@ import os, math
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "architecture.png")
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 
-W, H = 1400, 860
+W, H = 1400, 920
 BG = (248, 244, 234)
 
 GREEN      = (38,  90,  56)
@@ -139,7 +139,7 @@ MW = L2 - L1 - 30; MX = L1 + 15
 
 node("onboard",  MX, 150, MX+MW, 255,
      "Onboarding Form",
-     ["Location search (Nominatim)", "Tree age \u00b7 tapping system", "Start time \u00b7 plantation size"],
+     ["Location search (Nominatim)", "Tree age \u00b7 tapping system", "Start time \u00b7 plantation size", "Latex sale method  \u2728 Phase 2"],
      GREEN_L, GREEN)
 
 node("storage",  MX, 275, MX+MW, 335,
@@ -152,12 +152,13 @@ node("loading",  MX, 355, MX+MW, 415,
      ['"Checking the skies\u2026"'],
      (245, 245, 245), LIGHT_LINE, MID)
 
-node("result",   MX, 435, MX+MW, 565,
+node("result",   MX, 435, MX+MW, 580,
      "Recommendation Card",
-     ["Verdict badge + confidence bar", "Weather summary grid", "Bullet-point reasoning", "Next safe window callout"],
+     ["Verdict badge + confidence bar", "Weather summary grid", "Bullet-point reasoning", "Next safe window callout",
+      "Yield & labour panel  \u2728 Phase 2", "Off-season banner  \u2728 Phase 2"],
      AMBER_L, AMBER, AMBER)
 
-node("error",    MX, 585, MX+MW, 645,
+node("error",    MX, 596, MX+MW, 656,
      "Error State",
      ["Retry / Start-over actions"],
      (255, 235, 235), (200, 80, 80), (180, 50, 50))
@@ -180,14 +181,19 @@ node("decision_r",BX, 330, BX+BW, 400,
      ["PlantationProfile + hourly[]", "Returns DecisionResponse"],
      (230, 238, 255), BLUE)
 
-node("engine",    BX, 420, BX+BW, 570,
+node("engine",    BX, 420, BX+BW, 560,
      "Decision Engine",
      ["Rain probability gating (60%)", "Rain amount check (2 mm)", "Humidity flag (95%)", "Tree-age modifiers \u00d70.8\u20131.1", "Rain-guard modifier \u00d71.25", "Next safe window finder (48h)"],
      GREEN_L, GREEN, GREEN)
 
-node("models",    BX, 590, BX+BW, 650,
+node("yield",     BX, 575, BX+BW, 650,
+     "Yield & Labour Engine  \u2728 Phase 2",
+     ["Latex litres estimate (50 L/block)", "Tappers needed \u00b7 tapper blocks", "Off-season detection (Jun\u2013Aug)", "Liquid latex vs rubber sheets tip"],
+     (235, 248, 238), GREEN, GREEN)
+
+node("models",    BX, 665, BX+BW, 720,
      "Pydantic v2 Models",
-     ["DecisionRequest \u00b7 DecisionResponse"],
+     ["DecisionRequest \u00b7 YieldEstimate \u00b7 DecisionResponse"],
      (240, 240, 250), PURPLE, PURPLE)
 
 # ── External nodes ─────────────────────────────────────────────────────────
@@ -250,9 +256,10 @@ rx5, ry5 = right_of("storage")
 lx5, ly5 = left_of("device")
 arrow(rx5, ry5, lx5, ly5, AMBER, lw=2, dashed=True)
 
-# decision_r → engine → models
+# decision_r → engine → yield → models
 arrow(*bot_of("decision_r"), *top_of("engine"),  GREEN,  lw=2)
-arrow(*bot_of("engine"),     *top_of("models"),  PURPLE, lw=2)
+arrow(*bot_of("engine"),     *top_of("yield"),   GREEN,  lw=2)
+arrow(*bot_of("yield"),      *top_of("models"),  PURPLE, lw=2)
 
 # ── Title bar ──────────────────────────────────────────────────────────────
 draw.rectangle([(0, 0), (W, 82)], fill=GREEN)
