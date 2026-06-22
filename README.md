@@ -39,17 +39,21 @@ Every verdict includes bullet-point reasoning, a weather summary, confidence sco
 <div align="center">
 <table>
 <tr>
-<td align="center" width="33%">
-<img src="docs/screen_onboarding.png" width="240"/><br/>
-<sub><b>Onboarding</b><br/>Location search · Tree age<br/>Tapping system · Sale method</sub>
+<td align="center" width="25%">
+<img src="docs/screen_onboarding.png" width="200"/><br/>
+<sub><b>Onboarding</b><br/>Location · Tree age<br/>Tapping system · Sale method</sub>
 </td>
-<td align="center" width="33%">
-<img src="docs/screen_tap.png" width="240"/><br/>
-<sub><b>Tap — clear conditions</b><br/>Confidence bar · Weather grid<br/>Yield & labour estimate</sub>
+<td align="center" width="25%">
+<img src="docs/screen_tap.png" width="200"/><br/>
+<sub><b>Tap — clear conditions</b><br/>Confidence bar · Weather grid<br/>Reasoning bullets</sub>
 </td>
-<td align="center" width="33%">
-<img src="docs/screen_donttap.png" width="240"/><br/>
-<sub><b>Don't Tap — rain risk</b><br/>Next safe window · Off-season<br/>banner · Muted yield panel</sub>
+<td align="center" width="25%">
+<img src="docs/screen_yield.png" width="200"/><br/>
+<sub><b>Yield & Labour card ✨</b><br/>Expected litres · Tappers needed<br/>Tapper blocks · Latex tip · Off-season note</sub>
+</td>
+<td align="center" width="25%">
+<img src="docs/screen_donttap.png" width="200"/><br/>
+<sub><b>Don't Tap — rain risk</b><br/>Next safe window<br/>Off-season banner</sub>
 </td>
 </tr>
 </table>
