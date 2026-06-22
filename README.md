@@ -49,7 +49,7 @@ Every verdict comes with bullet-point reasoning, a weather summary, and a confid
 | Backend | FastAPI · Python 3.14 · Pydantic v2 · Uvicorn |
 | Weather | [Open-Meteo](https://open-meteo.com) — free, no API key |
 | Decision logic | Pure Python rule engine — no ML, no database |
-| Persistence | `localStorage` only — plantation profile never leaves the device |
+| Persistence | `localStorage` for plantation profile · PocketBase-style API abstraction for marketplace prototype |
 
 ---
 
@@ -65,6 +65,8 @@ Every verdict comes with bullet-point reasoning, a weather summary, and a confid
 - Next safe window — scans 48 h ahead for the first clean 3-hour slot
 
 **Frontend**
+- Landing mode switcher for Growers and Tappers
+- Tapper marketplace — create a profile quickly, swipe tapper cards, unlock contact after interest
 - Onboarding form — location search, tree age, tapping system, preferred start time
 - Recommendation card — verdict badge, confidence bar, weather grid, reasoning bullets
 - Saves your plantation profile locally — skips onboarding on return visits
@@ -82,7 +84,7 @@ uvicorn main:app --reload --port 8001
 
 # Frontend (new terminal)
 cd frontend && npm install
-cp .env.local.example .env.local   # set NEXT_PUBLIC_API_URL=http://localhost:8001
+cp .env.local.example .env.local   # set NEXT_PUBLIC_API_URL and optional NEXT_PUBLIC_POCKETBASE_URL
 npm run dev
 ```
 
@@ -96,6 +98,11 @@ Open [http://localhost:3000](http://localhost:3000)
 GET  /health
 GET  /weather/forecast?lat=9.59&lon=76.52&days=2
 POST /decision/recommend  { plantation: {...}, hourly_forecast: [...] }
+
+# Optional PocketBase marketplace collections
+GET  /api/collections/tappers/records
+POST /api/collections/tappers/records
+POST /api/collections/matches/records
 ```
 
 ---
@@ -106,10 +113,12 @@ POST /decision/recommend  { plantation: {...}, hourly_forecast: [...] }
 - [x] Rule-based decision engine
 - [x] Next.js 15 frontend — onboarding, recommendation card, dark mode
 - [x] localStorage persistence, no login required
+- [x] Phase 2 no-auth tapper marketplace prototype
+- [ ] Durable PocketBase disk/storage for production marketplace data
 - [ ] Leaflet interactive map for location pin
 - [ ] Offline PWA with cached last forecast
 - [ ] Malayalam / English language toggle
-- [ ] Deployment guide (Vercel + Fly.io)
+- [x] Deployment guide (Vercel + Render)
 
 ---
 
