@@ -6,8 +6,8 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const lora = Lora({ subsets: ["latin"], variable: "--font-lora" });
 
 export const metadata: Metadata = {
-  title: "mazha Tap\u2014",
-  description: "Rain-tapping decision tool for Kerala rubber growers",
+  title: "Mazha Tapper Marketplace",
+  description: "No-login matching layer for Kerala rubber growers and skilled tappers",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

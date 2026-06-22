@@ -1,18 +1,11 @@
 <div align="center">
 
-<img src="docs/logo.png" alt="mazha Tap logo" width="600"/>
+<img src="docs/logo.png" alt="Mazha logo" width="600"/>
 
-<br/>
+# Mazha — Tapper Marketplace
 
-![Python](https://img.shields.io/badge/Python-3.14-3d7a50?style=flat-square&logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.115-3d7a50?style=flat-square&logo=fastapi&logoColor=white)
-![Next.js](https://img.shields.io/badge/Next.js-15-d6851e?style=flat-square&logo=next.js&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-d6851e?style=flat-square&logo=typescript&logoColor=white)
-![Open-Meteo](https://img.shields.io/badge/Weather-Open--Meteo-5080c8?style=flat-square)
-![License](https://img.shields.io/badge/License-MIT-aaaaaa?style=flat-square)
-
-**Know whether to tap your rubber trees before you leave the house.**  
-No subscription. No API key. No guessing.
+**Tinder-style matching for Kerala rubber growers and skilled tappers.**
+No auth, no payments, no in-app chat — just profile discovery and direct contact.
 
 </div>
 
@@ -20,99 +13,98 @@ No subscription. No API key. No guessing.
 
 ## What it does
 
-Kerala rubber growers tap early morning — usually 3–6 AM. One wrong call in the monsoon means diluted latex, wet bark, and wasted hours.
+Mazha connects rubber plantation owners with tappers who are available for work.
 
-**mazha Tap** reads the hourly forecast for your exact location and returns a single, plain-language verdict:
-
-| | Verdict | When |
-|---|---|---|
-| ✅ | **Tap** | Rain risk is low within your window |
-| ⚠️ | **Delay** | Moderate risk — here's your next safe slot |
-| ❌ | **Don't Tap** | Rain probability or amount is too high |
-
-Every verdict comes with bullet-point reasoning, a weather summary, and a confidence score — so growers understand *why*, not just *what*.
+- **Tappers** create a profile card with experience, location, tapping systems, daily capacity, languages, photo, availability, bio, and contact number.
+- **Growers** switch to Grower mode, filter by district/availability/minimum experience, and swipe through available tapper cards.
+- **Right swipe** creates a lightweight match and reveals call/WhatsApp actions.
+- **No login** is required. A generated `edit_token` is stored in local storage so a tapper can return to edit their own profile from the same browser.
 
 ---
 
-## Architecture
-
-<img src="docs/architecture.png" alt="mazha Tap system architecture" width="100%"/>
-
----
-
-## Built with
+## Tech stack
 
 | Layer | Stack |
 |---|---|
 | Frontend | Next.js 15 · React 18 · TypeScript · Tailwind CSS · shadcn/ui |
-| Maps & Location | Nominatim / OpenStreetMap (location search + reverse geocoding) |
-| Backend | FastAPI · Python 3.14 · Pydantic v2 · Uvicorn |
-| Weather | [Open-Meteo](https://open-meteo.com) — free, no API key |
-| Decision logic | Pure Python rule engine — no ML, no database |
-| Persistence | `localStorage` only — plantation profile never leaves the device |
+| Swipe UI | `react-tinder-card` |
+| Persistence | PocketBase · SQLite · file storage |
+| Hosting | Vercel frontend · Render PocketBase service |
 
 ---
 
-## Features
+## Core data model
 
-**Decision engine**
-- Rain probability gating (hard block at 60%, caution at 35%)
-- Rain amount threshold (block at 2 mm, caution at 0.5 mm)
-- Humidity flag — very high humidity (≥ 95%) triggers caution even without rain
-- Tree age modifiers — young trees tighten thresholds, old trees relax them
-- Rain-guard support — 25% threshold relaxation for installed rain-guard systems
-- Large plantation lead-time — > 500 trees gets an earlier recommended start
-- Next safe window — scans 48 h ahead for the first clean 3-hour slot
+### `tappers`
 
-**Frontend**
-- Onboarding form — location search, tree age, tapping system, preferred start time
-- Recommendation card — verdict badge, confidence bar, weather grid, reasoning bullets
-- Saves your plantation profile locally — skips onboarding on return visits
-- Dark mode · Kerala earthy colour palette (deep greens, amber, warm cream)
+```txt
+id, name, photo, district, years_experience, tapping_systems,
+trees_per_day, availability, available_from, languages, bio,
+contact_number, created, edit_token
+```
+
+### `matches`
+
+```txt
+id, tapper_id, created
+```
+
+PocketBase migrations live in `pocketbase/pb_migrations` and create both collections automatically when the PocketBase service starts.
 
 ---
 
-## Quick start
+## Local development
+
+### Frontend
 
 ```bash
-# Backend
-cd backend && python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8001
-
-# Frontend (new terminal)
-cd frontend && npm install
-cp .env.local.example .env.local   # set NEXT_PUBLIC_API_URL=http://localhost:8001
+cd frontend
+npm install
+cp .env.local.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open http://localhost:3000.
+
+If `NEXT_PUBLIC_POCKETBASE_URL` is unset, the app runs in local demo mode with seeded profiles and browser-local saved tapper profiles.
+
+### PocketBase
+
+```bash
+cd pocketbase
+docker build -t mazha-pocketbase .
+docker run --rm -p 8090:8090 mazha-pocketbase
+```
+
+Then set:
+
+```bash
+NEXT_PUBLIC_POCKETBASE_URL=http://localhost:8090
+```
+
+PocketBase admin UI is available at http://localhost:8090/_/.
 
 ---
 
-## API
+## Scripts
 
-```
-GET  /health
-GET  /weather/forecast?lat=9.59&lon=76.52&days=2
-POST /decision/recommend  { plantation: {...}, hourly_forecast: [...] }
+```bash
+cd frontend
+npm run lint
+npm run typecheck
+npm run build
 ```
 
 ---
 
-## Roadmap
+## Deployment
 
-- [x] FastAPI backend + Open-Meteo weather proxy
-- [x] Rule-based decision engine
-- [x] Next.js 15 frontend — onboarding, recommendation card, dark mode
-- [x] localStorage persistence, no login required
-- [ ] Leaflet interactive map for location pin
-- [ ] Offline PWA with cached last forecast
-- [ ] Malayalam / English language toggle
-- [ ] Deployment guide (Vercel + Fly.io)
+See `DEPLOY.md` for Vercel and Render setup.
+
+Important: Render free web services do not provide durable persistent disks for PocketBase SQLite. The included Render config keeps hosting cost at $0, but production-grade profile durability requires adding a persistent disk or choosing a backend with durable free storage.
 
 ---
 
 <div align="center">
-  <sub>Built for the rubber growers of Kerala · MIT © 2026</sub>
+  <sub>Built for the rubber growers and tappers of Kerala · MIT © 2026</sub>
 </div>

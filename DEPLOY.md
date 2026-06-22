@@ -1,35 +1,49 @@
-# Deploying mazha Tap—
+# Deploying Mazha Tapper Marketplace
 
-## Backend → Render (free tier)
+## PocketBase backend → Render
 
-1. Push code to GitHub
-2. Go to https://render.com → New → Web Service
-3. Connect your GitHub repo
-4. Set:
-   - Root directory: `backend`
-   - Runtime: Python 3
-   - Build command: `pip install -r requirements.txt`
-   - Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-5. Click Deploy — Render will give you a URL like `https://mazha-tap-api.onrender.com`
+The repo includes `render.yaml` and `pocketbase/Dockerfile` for a Render Docker web service.
 
-## Frontend → Vercel (free tier)
+1. Push the repo to GitHub.
+2. In Render, create a Blueprint or Web Service from this repo.
+3. Use the service generated from `render.yaml`:
+   - Service name: `mazha-pocketbase`
+   - Runtime: Docker
+   - Root directory: `pocketbase`
+   - Plan: Free
+4. Wait for the service to start. The health endpoint is `/api/health`.
+5. Open the PocketBase admin UI at `https://<render-service>.onrender.com/_/` and create the first admin if needed.
 
-1. Go to https://vercel.com → New Project → Import your GitHub repo
-2. Set:
-   - Framework Preset: Next.js
-   - Root directory: `frontend`
+The migration in `pocketbase/pb_migrations` creates:
+
+- `tappers`
+- `matches`
+
+### Render free-tier durability note
+
+PocketBase stores records and uploaded profile photos in SQLite/files under `pb_data`. Render free web services use ephemeral storage, so data can be lost across redeploys or instance replacement. To guarantee durable production persistence, add a Render persistent disk or use a durable hosted backend. A persistent disk may not be available on a zero-cost plan.
+
+## Frontend → Vercel
+
+1. Import this repo in Vercel.
+2. Set project root/build settings from `vercel.json`:
+   - Build command: `cd frontend && npm run build`
+   - Install command: `cd frontend && npm install`
+   - Output directory: `frontend/.next`
 3. Add environment variable:
-   - `NEXT_PUBLIC_API_URL` = your Render API URL (e.g. `https://mazha-tap-api.onrender.com`)
-4. Deploy
 
-## CORS
+```bash
+NEXT_PUBLIC_POCKETBASE_URL=https://<render-service>.onrender.com
+```
 
-The backend is already configured with `allow_origins=["*"]` in `main.py`.
-For production, update CORS to only allow your Vercel domain.
+4. Deploy.
 
-## Free tier notes
+## Verification checklist
 
-- Render free tier spins down after 15 min inactivity — first request may be slow (~30s).
-- Vercel hobby tier: unlimited deploys, custom domain supported.
-- Open-Meteo: completely free, no key needed.
-- Nominatim (geocoding): free, rate-limited to 1 req/sec — fine for this use case.
+- Open the Vercel URL.
+- Switch to **Tapper** mode.
+- Create a profile with a photo and contact number.
+- Refresh the page and confirm the profile can be edited from the same browser.
+- Switch to **Grower** mode.
+- Filter by the tapper's district.
+- Swipe right and confirm the contact number, Call, and WhatsApp actions appear.
