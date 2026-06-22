@@ -7,8 +7,8 @@ description: Test the Mazha Tap Next.js app locally, including marketplace profi
 
 ## Devin Secrets Needed
 
-- None for local demo testing. The marketplace works with seed data and browser `localStorage` when `NEXT_PUBLIC_POCKETBASE_URL` is unset.
-- Optional deployment testing may need platform tokens already available through the environment, such as Vercel/Render/PocketBase credentials, but local UI testing does not require them.
+- None for local demo testing. The marketplace works with seed data and browser `localStorage` when `NEXT_PUBLIC_SUPABASE_URL` is unset.
+- Optional deployment testing may need platform tokens already available through the environment, such as Vercel/Render/Supabase credentials, but local UI testing does not require them.
 
 ## Local setup
 

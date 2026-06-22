@@ -1,53 +1,53 @@
-# PocketBase marketplace schema
+# Supabase marketplace schema
 
-Phase 2 can run in demo mode with browser `localStorage`. Set `NEXT_PUBLIC_POCKETBASE_URL` to use PocketBase for shared persistence.
+The marketplace runs in demo mode with browser `localStorage` by default. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` to use Supabase for shared persistence.
 
-## Collections
+## Tables
 
 ### `tappers`
 
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `name` | text | yes | Tapper display name |
-| `photo` | file | no | One image |
-| `district` | select/text | yes | Kerala district |
-| `years_experience` | number | yes | 0–40 |
-| `tapping_systems` | json or multi-select | yes | Conventional, rain-guard, S/2 d2, etc. |
-| `trees_per_day` | number | yes | Typical daily capacity |
-| `availability` | select | yes | `available_now`, `available_from`, `not_available` |
-| `available_from` | date | no | Only for `available_from` |
-| `languages` | json or multi-select | yes | Malayalam, Tamil, English |
-| `bio` | text | no | Keep to 100 characters in UI |
-| `contact_number` | text | yes | Revealed after match |
-| `edit_token` | text | yes | UUID/token generated client-side |
-
-Suggested API rules for a prototype:
-
-```txt
-list/search: availability != "not_available"
-view: true
-create: true
-update: edit_token = @request.data.edit_token
-delete: false
-```
-
-For a public demo, prefer a backend proxy for updates so `edit_token` is never part of a public rule expression.
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid (PK, default gen) | |
+| `name` | text | not null |
+| `photo` | text | nullable, public URL or data-URL |
+| `district` | text | not null |
+| `years_experience` | integer | default 0 |
+| `tapping_systems` | text[] | |
+| `trees_per_day` | integer | default 0 |
+| `availability` | text | not null, one of available_now / available_from / not_available |
+| `available_from` | date | nullable |
+| `languages` | text[] | |
+| `bio` | text | nullable |
+| `contact_number` | text | not null |
+| `edit_token` | text | not null, unique — bearer token for no-auth edits |
+| `created` | timestamptz | default now() |
 
 ### `matches`
 
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `tapper_id` | relation/text | yes | Matched tapper record id |
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid (PK, default gen) | |
+| `tapper_id` | uuid | references tappers(id) |
+| `created` | timestamptz | default now() |
 
-Suggested API rules:
+## Row-Level Security (RLS)
 
-```txt
-list/search: false
-view: false
-create: true
-update/delete: false
-```
+- `tappers` SELECT: anyone can read rows where `availability != 'not_available'`
+- `tappers` INSERT: anyone (anon) — `edit_token` must be non-empty
+- `tappers` UPDATE: only if `edit_token` in request matches `edit_token` on the row
+- `tappers` DELETE: disabled
+- `matches` INSERT: anyone (anon)
+- `matches` SELECT: anyone
 
-## Deployment notes
+## Storage
 
-PocketBase needs durable filesystem storage for SQLite and uploaded profile photos. Render free web services can sleep and may not provide durable disk semantics suitable for production records. For a LinkedIn/demo build, the frontend still works without PocketBase using seed tappers plus browser-local profiles. For real shared persistence, attach a persistent disk or move records to an always-durable free database/storage provider.
+Create a public bucket named `tapper-photos` for profile images. The frontend uploads via Supabase Storage and reads public URLs.
+
+## Migration
+
+See `supabase/migrations/001_marketplace.sql` for the full migration script.
+
+## Free-tier notes
+
+Supabase free tier includes 500 MB database, 1 GB storage, and 50 MB file uploads. For a demo/prototype this is more than sufficient.

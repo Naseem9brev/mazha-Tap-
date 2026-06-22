@@ -18,21 +18,22 @@
 2. Set:
    - Framework Preset: Next.js
    - Root directory: `frontend`
-3. Add environment variable:
+3. Add environment variables:
    - `NEXT_PUBLIC_API_URL` = your Render API URL (e.g. `https://mazha-tap-api.onrender.com`)
-   - Optional for Phase 2 shared marketplace persistence: `NEXT_PUBLIC_POCKETBASE_URL` = your PocketBase URL
+   - Optional for shared marketplace persistence: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 4. Deploy
 
-## Phase 2 marketplace → PocketBase
+## Marketplace → Supabase
 
 The marketplace UI ships with seed tappers and browser-local profile storage so it can be demoed immediately. For shared persistence:
 
-1. Create a PocketBase web service on Render.
-2. Create the `tappers` and `matches` collections described in `docs/pocketbase-marketplace.md`.
-3. Set `NEXT_PUBLIC_POCKETBASE_URL` in Vercel.
-4. Redeploy the frontend.
+1. Create a Supabase project at https://supabase.com.
+2. Run the migration in `supabase/migrations/001_marketplace.sql` via the Supabase SQL editor.
+3. Create a public storage bucket named `tapper-photos`.
+4. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in Vercel.
+5. Redeploy the frontend.
 
-PocketBase stores SQLite data and profile photos on disk. Render free web services are fine for a quick demo, but verify disk durability before treating it as production persistence.
+See `docs/pocketbase-marketplace.md (now Supabase-based)` for the full schema, RLS policies, and free-tier notes.
 
 ## CORS
 
@@ -45,3 +46,4 @@ For production, update CORS to only allow your Vercel domain.
 - Vercel hobby tier: unlimited deploys, custom domain supported.
 - Open-Meteo: completely free, no key needed.
 - Nominatim (geocoding): free, rate-limited to 1 req/sec — fine for this use case.
+- Supabase free tier: 500 MB database, 1 GB storage — sufficient for prototype.
