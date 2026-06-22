@@ -33,9 +33,9 @@ export function MarketplaceShell({ onRainMode }: MarketplaceShellProps) {
     <div className="min-h-screen bg-background px-4 py-8">
       <div className="mx-auto max-w-5xl space-y-8">
         <div className="text-center">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-primary">Mazha Phase 2</p>
+          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-primary">Tapper marketplace</p>
           <h1 className="font-lora text-5xl font-bold text-primary md:text-6xl">mazha Tap</h1>
-          <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">Rain decisions for rubber growers, now with a no-auth tapper marketplace for Kerala plantations.</p>
+          <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">Rain decisions and a no-auth tapper marketplace for Kerala rubber plantations.</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">

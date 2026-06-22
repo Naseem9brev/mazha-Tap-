@@ -36,7 +36,7 @@ For production, update CORS to only allow your Vercel domain.
 
 ---
 
-## Phase 2 Marketplace → PocketBase (prototype)
+## Marketplace → PocketBase (prototype)
 
 The marketplace frontend works without a live database by default:
 
