@@ -499,6 +499,7 @@ function MatchReveal({ profile }: { profile: TapperProfile }) {
       <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-200">New match</p>
       <h3 className="mt-1 font-lora text-2xl font-black">{profile.name}</h3>
       <p className="mt-2 text-sm text-emerald-50">Contact is now visible because you swiped right.</p>
+      <a href={`tel:${profile.contact_number}`} className="mt-3 block text-xl font-black text-amber-100">{profile.contact_number}</a>
       <div className="mt-4 flex flex-wrap gap-2">
         <a href={`tel:${profile.contact_number}`} className="rounded-full bg-white px-4 py-2 text-sm font-black text-emerald-950">Call</a>
         <a href={`https://wa.me/${profile.contact_number.replace(/\D/g, "")}`} className="rounded-full bg-amber-400 px-4 py-2 text-sm font-black text-stone-950">WhatsApp</a>
