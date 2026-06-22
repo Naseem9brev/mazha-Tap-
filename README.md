@@ -30,7 +30,44 @@ Kerala rubber growers tap early morning — usually 3–6 AM. One wrong call in 
 | ⚠️ | **Delay** | Moderate risk — here's your next safe slot |
 | ❌ | **Don't Tap** | Rain probability or amount is too high |
 
-Every verdict comes with bullet-point reasoning, a weather summary, and a confidence score — so growers understand *why*, not just *what*.
+Every verdict includes bullet-point reasoning, a weather summary, confidence score — and now a **yield & labour estimate** so you know how much latex to expect and how many tappers to deploy.
+
+Beyond the decision tool, mazha Tap is growing into a **Tapper Marketplace** — connecting growers with skilled Kerala tappers they can browse, filter, and contact with a swipe.
+
+---
+
+## Tapper Marketplace ✨ Phase 3
+
+<img src="docs/screen_marketplace.png" alt="Tapper Marketplace" width="100%"/>
+
+Growers can swipe through verified tapper profiles filtered by district, availability, and experience. Right swipe reveals the tapper's contact — no middleman, no platform fee. Tappers create a work card showing their daily capacity, languages, and tapping methods (conventional, rain-guard, 5/2 d2). The marketplace sits alongside the rain decision tool under the same app — switch between Grower Mode, Tapper Mode, and Rain Decision from the role selector.
+
+---
+
+## Screenshots — Rain Decision Tool
+
+<div align="center">
+<table>
+<tr>
+<td align="center" width="25%">
+<img src="docs/screen_onboarding.png" width="200"/><br/>
+<sub><b>Onboarding</b><br/>Location · Tree age<br/>Tapping system · Sale method</sub>
+</td>
+<td align="center" width="25%">
+<img src="docs/screen_tap.png" width="200"/><br/>
+<sub><b>Tap — clear conditions</b><br/>Confidence bar · Weather grid<br/>Reasoning bullets</sub>
+</td>
+<td align="center" width="25%">
+<img src="docs/screen_yield.png" width="200"/><br/>
+<sub><b>Yield & Labour card ✨</b><br/>Expected litres · Tappers needed<br/>Tapper blocks · Latex tip · Off-season note</sub>
+</td>
+<td align="center" width="25%">
+<img src="docs/screen_donttap.png" width="200"/><br/>
+<sub><b>Don't Tap — rain risk</b><br/>Next safe window<br/>Off-season banner</sub>
+</td>
+</tr>
+</table>
+</div>
 
 ---
 
@@ -55,7 +92,7 @@ Every verdict comes with bullet-point reasoning, a weather summary, and a confid
 
 ## Features
 
-**Decision engine**
+### Phase 1 — Decision Engine
 - Rain probability gating (hard block at 60%, caution at 35%)
 - Rain amount threshold (block at 2 mm, caution at 0.5 mm)
 - Humidity flag — very high humidity (≥ 95%) triggers caution even without rain
@@ -64,11 +101,23 @@ Every verdict comes with bullet-point reasoning, a weather summary, and a confid
 - Large plantation lead-time — > 500 trees gets an earlier recommended start
 - Next safe window — scans 48 h ahead for the first clean 3-hour slot
 
-**Frontend**
-- Landing mode switcher for Growers and Tappers
-- Tapper marketplace — create a profile quickly, swipe tapper cards, unlock contact after interest
-- Onboarding form — location search, tree age, tapping system, preferred start time
-- Recommendation card — verdict badge, confidence bar, weather grid, reasoning bullets
+### Phase 2 — Yield & Labour Intelligence ✨
+- **Latex yield estimate** — calculates expected litres per tapping day based on tree count (50 L/tapper block)
+- **Labour planning** — tells you how many tappers you need and how many blocks your plantation forms
+- **Off-season detection** — flags June–August Kerala stress period; warns against over-tapping
+- **Latex sale method** — onboarding captures whether you sell liquid latex or rubber sheets; tailored post-tap tips (DRC % for liquid, coagulation timing for sheets)
+- **Seasonal awareness** — yield engine skips estimates during declared off-season to avoid misleading projections
+
+### Tapper Marketplace ✨
+- **Landing mode switcher** — choose Grower or Tapper, with the rain decision tool still available to growers
+- **Tapper profile creation** — publish a no-auth work profile in under two minutes
+- **Swipeable tapper profiles** — browse Kerala tappers and pass or mark interest
+- **Right swipe to reveal contact** — direct call or WhatsApp after grower interest
+- **PocketBase-style persistence** — uses `NEXT_PUBLIC_POCKETBASE_URL` when configured and localStorage fallback for prototypes
+
+### Frontend
+- Onboarding form — location search, tree age, tapping system, preferred start time, latex sale method
+- Recommendation card — verdict badge, confidence bar, weather grid, reasoning bullets, next safe window, yield & labour panel, off-season banner
 - Saves your plantation profile locally — skips onboarding on return visits
 - Dark mode · Kerala earthy colour palette (deep greens, amber, warm cream)
 
@@ -105,6 +154,25 @@ POST /api/collections/tappers/records
 POST /api/collections/matches/records
 ```
 
+**`POST /decision/recommend` response includes:**
+```json
+{
+  "recommendation": "tap",
+  "confidence": 88,
+  "headline": "Good conditions — tap today.",
+  "reasoning": ["Rain stays at 12%...", "High humidity noted..."],
+  "next_window": null,
+  "weather_summary": { "tapping_window": "05:00–09:00", ... },
+  "yield_estimate": {
+    "estimated_litres": 20,
+    "tappers_needed": 1,
+    "num_blocks": 1,
+    "off_season": false,
+    "note": "..."
+  }
+}
+```
+
 ---
 
 ## Roadmap
@@ -113,9 +181,12 @@ POST /api/collections/matches/records
 - [x] Rule-based decision engine
 - [x] Next.js 15 frontend — onboarding, recommendation card, dark mode
 - [x] localStorage persistence, no login required
-- [x] Phase 2 no-auth tapper marketplace prototype
+- [x] **Yield & labour estimator** ✨
+- [x] **Off-season detection** ✨
+- [x] **Latex sale method onboarding + tailored tips** ✨
+- [x] **Tapper Marketplace — swipeable profiles, role switcher** ✨
 - [ ] Durable PocketBase disk/storage for production marketplace data
-- [ ] Leaflet interactive map for location pin
+- [ ] Leaflet interactive map for precise location pin
 - [ ] Offline PWA with cached last forecast
 - [ ] Malayalam / English language toggle
 - [x] Deployment guide (Vercel + Render)
