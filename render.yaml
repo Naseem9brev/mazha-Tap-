@@ -9,3 +9,17 @@ services:
       - key: PORT
         value: 8000
     plan: free
+
+  # Optional prototype PocketBase service. Render free services have ephemeral
+  # filesystems, so uploaded files and pb_data are not durable on this plan.
+  - type: web
+    name: mazha-tap-pocketbase
+    runtime: docker
+    dockerfilePath: ./pocketbase/Dockerfile
+    rootDir: .
+    plan: free
+    envVars:
+      - key: PB_ADMIN_EMAIL
+        sync: false
+      - key: PB_ADMIN_PASSWORD
+        sync: false

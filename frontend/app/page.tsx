@@ -4,14 +4,15 @@ import { OnboardingForm } from "@/components/OnboardingForm";
 import { RecommendationCard } from "@/components/RecommendationCard";
 import { LoadingState } from "@/components/LoadingState";
 import { ErrorState } from "@/components/ErrorState";
+import { MarketplaceShell } from "@/components/MarketplaceShell";
 import { loadPlantation, clearPlantation } from "@/lib/storage";
 import { fetchForecast, fetchDecision } from "@/lib/api";
 import type { PlantationProfile, DecisionResponse } from "@/lib/api";
 
-type AppState = "onboarding" | "loading" | "result" | "error";
+type AppState = "landing" | "onboarding" | "loading" | "result" | "error";
 
 export default function Home() {
-  const [appState, setAppState] = useState<AppState>("loading");
+  const [appState, setAppState] = useState<AppState>("landing");
   const [plantation, setPlantation] = useState<PlantationProfile | null>(null);
   const [decision, setDecision] = useState<DecisionResponse | null>(null);
   const [locationName, setLocationName] = useState("");
@@ -35,13 +36,11 @@ export default function Home() {
     }
   }, []);
 
-  // On mount: check for saved plantation
-  useEffect(() => {
+  const startRainMode = useCallback(() => {
     const saved = loadPlantation();
     if (saved && saved.latitude && saved.longitude) {
       const profile = saved as PlantationProfile;
       setPlantation(profile);
-      // Try to get a location name from coords via reverse geocode
       fetch(
         `https://nominatim.openstreetmap.org/reverse?lat=${profile.latitude}&lon=${profile.longitude}&format=json`,
         { headers: { "Accept-Language": "en" } }
@@ -54,6 +53,11 @@ export default function Home() {
       setAppState("onboarding");
     }
   }, [runDecision]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("mode") === "rain") startRainMode();
+  }, [startRainMode]);
 
   const handleOnboardingComplete = (profile: PlantationProfile) => {
     setPlantation(profile);
@@ -72,6 +76,10 @@ export default function Home() {
   const handleRefresh = () => {
     if (plantation) runDecision(plantation, true);
   };
+
+  if (appState === "landing") {
+    return <MarketplaceShell onRainMode={startRainMode} />;
+  }
 
   if (appState === "onboarding") {
     return <OnboardingForm onComplete={handleOnboardingComplete} />;
@@ -94,18 +102,16 @@ export default function Home() {
   if (appState === "result" && decision) {
     return (
       <div className="min-h-screen bg-background">
-        {/* Top bar */}
-        <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-            <h1 className="font-lora font-bold text-lg text-primary">mazha Tap&mdash;</h1>
+        <div className="sticky top-0 z-10 border-b border-border bg-card/50 backdrop-blur-sm">
+          <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
+            <button className="font-lora text-lg font-bold text-primary" onClick={() => setAppState("landing")}>mazha Tap&mdash;</button>
             <span className="text-xs text-muted-foreground">
               {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
             </span>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="max-w-lg mx-auto px-4 py-6">
+        <div className="mx-auto max-w-lg px-4 py-6">
           <RecommendationCard
             decision={decision}
             locationName={locationName}
@@ -115,10 +121,9 @@ export default function Home() {
           />
         </div>
 
-        {/* Footer */}
-        <div className="max-w-lg mx-auto px-4 py-4 text-center">
+        <div className="mx-auto max-w-lg px-4 py-4 text-center">
           <p className="text-xs text-muted-foreground">
-            Weather from Open-Meteo &middot; No data stored &middot; Personal project
+            Weather from Open-Meteo &middot; Marketplace prototype &middot; Personal project
           </p>
         </div>
       </div>
