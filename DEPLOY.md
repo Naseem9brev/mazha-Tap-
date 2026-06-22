@@ -19,20 +19,19 @@ Manual settings if not using the blueprint:
 
 ## Marketplace persistence → Render PocketBase
 
-Phase 2 uses a PocketBase-style API abstraction for tapper profiles and grower matches. The `mazha-pocketbase` service in `render.yaml` builds `pocketbase/Dockerfile`.
+The marketplace UI ships with seed tappers and browser-local profile storage so it can be demoed immediately. For shared persistence, the `mazha-pocketbase` service in `render.yaml` builds `pocketbase/Dockerfile`.
 
 After the service deploys:
 
 1. Open `https://mazha-pocketbase.onrender.com/_/`
 2. Create the first admin user
-3. Create two public prototype collections:
-   - `tappers`: `name`, `location`, `phone`, `experienceYears`, `ratePerDay`, `skills`, `languages`, `bio`, `photoUrl`
-   - `matches`: `tapperId`, `direction`
-4. For the no-auth prototype, allow public create/list on both collections or keep using the frontend localStorage fallback.
+3. Create the `tappers` and `matches` collections described in `docs/pocketbase-marketplace.md`
+4. Set `NEXT_PUBLIC_POCKETBASE_URL` in Vercel
+5. Redeploy the frontend
 
 ### Render free-tier warning
 
-Render free web-service filesystems are ephemeral. PocketBase stores SQLite data and uploaded files on disk, so free-tier data can disappear after restarts or deploys. Use a paid Render disk or a managed persistent backend before collecting real marketplace data.
+PocketBase stores SQLite data and uploaded profile photos on disk. Render free web services are fine for a quick demo, but verify disk durability or attach a persistent disk before treating it as production persistence.
 
 ## Frontend → Vercel (free tier)
 
@@ -45,7 +44,7 @@ Render free web-service filesystems are ephemeral. PocketBase stores SQLite data
    - Output directory: `frontend/.next`
 3. Add environment variables:
    - `NEXT_PUBLIC_API_URL` = your Render FastAPI URL, e.g. `https://mazha-tap-api.onrender.com`
-   - `NEXT_PUBLIC_POCKETBASE_URL` = your PocketBase URL, e.g. `https://mazha-pocketbase.onrender.com`
+   - Optional for Phase 2 shared marketplace persistence: `NEXT_PUBLIC_POCKETBASE_URL` = your PocketBase URL, e.g. `https://mazha-pocketbase.onrender.com`
 4. Deploy
 
 ## Local verification
@@ -53,7 +52,10 @@ Render free web-service filesystems are ephemeral. PocketBase stores SQLite data
 ```bash
 # Backend
 cd backend
-python -m py_compile main.py routers/*.py engine/*.py
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+python -m compileall -q .
 uvicorn main:app --reload --port 8000
 
 # Frontend
@@ -61,6 +63,7 @@ cd frontend
 cp .env.local.example .env.local
 npm install
 npm run lint
+npm run typecheck
 npm run build
 npm run dev
 ```
