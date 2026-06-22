@@ -32,9 +32,19 @@ Kerala rubber growers tap early morning — usually 3–6 AM. One wrong call in 
 
 Every verdict includes bullet-point reasoning, a weather summary, confidence score — and now a **yield & labour estimate** so you know how much latex to expect and how many tappers to deploy.
 
+Beyond the decision tool, mazha Tap is growing into a **Tapper Marketplace** — connecting growers with skilled Kerala tappers they can browse, filter, and contact with a swipe.
+
 ---
 
-## Screenshots
+## Tapper Marketplace ✨ Phase 3
+
+<img src="docs/screen_marketplace.png" alt="Tapper Marketplace" width="100%"/>
+
+Growers can swipe through verified tapper profiles filtered by district, availability, and experience. Right swipe reveals the tapper's contact — no middleman, no platform fee. Tappers create a work card showing their daily capacity, languages, and tapping methods (conventional, rain-guard, 5/2 d2). The marketplace sits alongside the rain decision tool under the same app — switch between Grower Mode, Tapper Mode, and Rain Decision from the role selector.
+
+---
+
+## Screenshots — Rain Decision Tool
 
 <div align="center">
 <table>
@@ -97,6 +107,13 @@ Every verdict includes bullet-point reasoning, a weather summary, confidence sco
 - **Off-season detection** — flags June–August Kerala stress period; warns against over-tapping
 - **Latex sale method** — onboarding captures whether you sell liquid latex or rubber sheets; tailored post-tap tips (DRC % for liquid, coagulation timing for sheets)
 - **Seasonal awareness** — yield engine skips estimates during declared off-season to avoid misleading projections
+
+### Phase 3 — Tapper Marketplace ✨
+- **Swipeable tapper profiles** — browse Kerala tappers filtered by district, availability, and minimum experience
+- **Tapper work cards** — daily tree capacity, languages, tapping methods (conventional, rain-guard, 5/2 d2), availability status
+- **Right swipe to reveal contact** — no intermediary; direct call or WhatsApp
+- **Dual role** — same app switches between Grower Mode, Tapper Mode, and Rain Decision tool
+- **Stacked card UI** — Tinder-style card stack with ✕ / contact / → swipe actions
 
 ### Frontend
 - Onboarding form — location search, tree age, tapping system, preferred start time, latex sale method
@@ -162,6 +179,7 @@ POST /decision/recommend  { plantation: {...}, hourly_forecast: [...] }
 - [x] **Yield & labour estimator** ✨
 - [x] **Off-season detection** ✨
 - [x] **Latex sale method onboarding + tailored tips** ✨
+- [x] **Tapper Marketplace — swipeable profiles, role switcher** ✨
 - [ ] Leaflet interactive map for precise location pin
 - [ ] Offline PWA with cached last forecast
 - [ ] Malayalam / English language toggle
