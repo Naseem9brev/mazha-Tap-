@@ -55,6 +55,13 @@ Every verdict comes with bullet-point reasoning, a weather summary, and a confid
 
 ## Features
 
+**Tapper marketplace**
+- Grower / Tapper mode switcher on the landing page
+- Tapper profile builder — photo, district, experience, systems known, capacity, availability, languages, bio, and contact
+- Swipe-based grower marketplace powered by `react-tinder-card`
+- Swipe right to create a match and reveal call / WhatsApp contact actions
+- Optional PocketBase REST persistence via `NEXT_PUBLIC_POCKETBASE_URL`, with local demo storage fallback
+
 **Decision engine**
 - Rain probability gating (hard block at 60%, caution at 35%)
 - Rain amount threshold (block at 2 mm, caution at 0.5 mm)
@@ -88,6 +95,14 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
+Phase 2 works without a backend in local demo mode. To use shared PocketBase persistence, set:
+
+```bash
+NEXT_PUBLIC_POCKETBASE_URL=https://your-pocketbase-service.onrender.com
+```
+
+See [`docs/pocketbase-marketplace.md`](docs/pocketbase-marketplace.md) for the collections and API rules.
+
 ---
 
 ## API
@@ -106,6 +121,7 @@ POST /decision/recommend  { plantation: {...}, hourly_forecast: [...] }
 - [x] Rule-based decision engine
 - [x] Next.js 15 frontend — onboarding, recommendation card, dark mode
 - [x] localStorage persistence, no login required
+- [x] Tapper marketplace — profile builder, swipe stack, match reveal
 - [ ] Leaflet interactive map for location pin
 - [ ] Offline PWA with cached last forecast
 - [ ] Malayalam / English language toggle

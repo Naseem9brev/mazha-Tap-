@@ -20,7 +20,19 @@
    - Root directory: `frontend`
 3. Add environment variable:
    - `NEXT_PUBLIC_API_URL` = your Render API URL (e.g. `https://mazha-tap-api.onrender.com`)
+   - Optional for Phase 2 shared marketplace persistence: `NEXT_PUBLIC_POCKETBASE_URL` = your PocketBase URL
 4. Deploy
+
+## Phase 2 marketplace → PocketBase
+
+The marketplace UI ships with seed tappers and browser-local profile storage so it can be demoed immediately. For shared persistence:
+
+1. Create a PocketBase web service on Render.
+2. Create the `tappers` and `matches` collections described in `docs/pocketbase-marketplace.md`.
+3. Set `NEXT_PUBLIC_POCKETBASE_URL` in Vercel.
+4. Redeploy the frontend.
+
+PocketBase stores SQLite data and profile photos on disk. Render free web services are fine for a quick demo, but verify disk durability before treating it as production persistence.
 
 ## CORS
 
