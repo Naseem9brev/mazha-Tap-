@@ -42,11 +42,11 @@ The marketplace runs in demo mode with browser `localStorage` by default. Set `N
 
 ## Storage
 
-Create a public bucket named `tapper-photos` for profile images. The frontend uploads via Supabase Storage and reads public URLs.
+The migration creates a public bucket named `tapper-photos` with anonymous read/upload/update policies for prototype profile images. The frontend uploads via Supabase Storage and reads public URLs.
 
 ## Migration
 
-See `supabase/migrations/001_marketplace.sql` for the full migration script.
+See `supabase/migrations/001_marketplace.sql` for the full migration script, including RLS and storage policies. The frontend sends `x-edit-token` on profile updates so the RLS update policy can authorize no-auth edits.
 
 ## Free-tier notes
 

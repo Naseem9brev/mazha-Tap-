@@ -87,9 +87,12 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const useSupabase = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
-function getSupabase() {
+function getSupabase(editToken?: string) {
   if (!useSupabase) throw new Error("Supabase is not configured");
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const options = editToken
+    ? { global: { headers: { "x-edit-token": editToken } } }
+    : undefined;
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, options);
 }
 
 /* ──────────── localStorage helpers (demo fallback) ──────────── */

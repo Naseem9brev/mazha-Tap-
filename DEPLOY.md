@@ -29,11 +29,11 @@ The marketplace UI ships with seed tappers and browser-local profile storage so 
 
 1. Create a Supabase project at https://supabase.com.
 2. Run the migration in `supabase/migrations/001_marketplace.sql` via the Supabase SQL editor.
-3. Create a public storage bucket named `tapper-photos`.
+3. The migration creates the public `tapper-photos` storage bucket and policies.
 4. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in Vercel.
 5. Redeploy the frontend.
 
-See `docs/pocketbase-marketplace.md (now Supabase-based)` for the full schema, RLS policies, and free-tier notes.
+See `docs/supabase-marketplace.md` for the full schema, RLS policies, and free-tier notes.
 
 ## CORS
 
