@@ -20,12 +20,27 @@
    - Root directory: `frontend`
 3. Add environment variable:
    - `NEXT_PUBLIC_API_URL` = your Render API URL (e.g. `https://mazha-tap-api.onrender.com`)
+   - Optional for shared marketplace persistence and profile photos:
+     - `NEXT_PUBLIC_SUPABASE_URL` = your Supabase project URL
+     - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your Supabase anon/publishable key
+     - `NEXT_PUBLIC_SUPABASE_TAPPER_PHOTO_BUCKET` = `tapper-photos`
    - Optional for Phase 2 shared marketplace persistence: `NEXT_PUBLIC_POCKETBASE_URL` = your PocketBase URL
 4. Deploy
 
+## Marketplace persistence → Supabase
+
+The marketplace UI ships with seed tappers and browser-local profile storage so it can be demoed immediately. For shared profiles, match logging, and uploaded profile photos:
+
+1. Create or choose a Supabase project.
+2. Apply `supabase/migrations/20260623131000_tapper_marketplace.sql`.
+3. Set the Supabase environment variables in Vercel.
+4. Redeploy the frontend.
+
+Supabase is preferred for production because Postgres and Storage persist profiles and photos across devices. See `docs/supabase-marketplace.md`.
+
 ## Phase 2 marketplace → PocketBase
 
-The marketplace UI ships with seed tappers and browser-local profile storage so it can be demoed immediately. For shared persistence:
+PocketBase remains supported as a lightweight prototype fallback:
 
 1. Create a PocketBase web service on Render.
 2. Create the `tappers` and `matches` collections described in `docs/pocketbase-marketplace.md`.
