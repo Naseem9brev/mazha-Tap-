@@ -75,12 +75,49 @@ export interface TapperMatch {
   id: string;
   tapper_id: string;
   created: string;
+  contact_number?: string;
+}
+
+interface SupabaseTapperRecord {
+  id?: string;
+  name?: string;
+  photo_url?: string | null;
+  photo?: string | null;
+  district?: string;
+  years_experience?: number;
+  tapping_systems?: string[];
+  trees_per_day?: number;
+  availability?: Availability;
+  available_from?: string | null;
+  languages?: string[];
+  bio?: string | null;
+  contact_number?: string | null;
+  edit_token?: string | null;
+  created_at?: string;
+  created?: string;
 }
 
 const PROFILE_KEY = "mazha-tap-tapper-owner";
 const TAPPERS_KEY = "mazha-tap-marketplace-tappers";
 const MATCHES_KEY = "mazha-tap-marketplace-matches";
 const POCKETBASE_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL?.replace(/\/$/, "");
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_TAPPER_PHOTO_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_TAPPER_PHOTO_BUCKET ?? "tapper-photos";
+const SUPABASE_PUBLIC_COLUMNS = [
+  "id",
+  "name",
+  "photo_url",
+  "district",
+  "years_experience",
+  "tapping_systems",
+  "trees_per_day",
+  "availability",
+  "available_from",
+  "languages",
+  "bio",
+  "created_at",
+].join(",");
 
 const seedTappers: TapperProfile[] = [
   {
@@ -175,6 +212,10 @@ function createId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.round(Math.random() * 100000)}`;
 }
 
+function createToken(): string {
+  return createId("edit");
+}
+
 function toDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -188,27 +229,39 @@ function localTappers(): TapperProfile[] {
   return readJson<TapperProfile[]>(TAPPERS_KEY, []);
 }
 
+function isSupabaseConfigured(): boolean {
+  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+}
+
+function isSupabaseProfileId(id?: string): boolean {
+  return Boolean(id?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));
+}
+
+function recordToTapper(record: SupabaseTapperRecord): TapperProfile {
+  return {
+    id: String(record.id ?? ""),
+    name: String(record.name ?? ""),
+    photo: record.photo_url ?? record.photo ?? "",
+    district: String(record.district ?? ""),
+    years_experience: Number(record.years_experience ?? 0),
+    tapping_systems: Array.isArray(record.tapping_systems) ? record.tapping_systems : [],
+    trees_per_day: Number(record.trees_per_day ?? 0),
+    availability: record.availability ?? "available_now",
+    available_from: record.available_from ?? undefined,
+    languages: Array.isArray(record.languages) ? record.languages : [],
+    bio: record.bio ?? undefined,
+    contact_number: record.contact_number ?? "",
+    edit_token: record.edit_token ?? "",
+    created: String(record.created_at ?? record.created ?? new Date().toISOString()),
+  };
+}
+
 function pocketBaseRecordToTapper(record: Partial<TapperProfile> & { collectionId?: string; photo?: string }): TapperProfile {
   const photo = record.photo && POCKETBASE_URL && record.id
     ? `${POCKETBASE_URL}/api/files/tappers/${record.id}/${record.photo}`
     : record.photo;
 
-  return {
-    id: String(record.id ?? ""),
-    name: String(record.name ?? ""),
-    photo,
-    district: String(record.district ?? ""),
-    years_experience: Number(record.years_experience ?? 0),
-    tapping_systems: Array.isArray(record.tapping_systems) ? record.tapping_systems : [],
-    trees_per_day: Number(record.trees_per_day ?? 0),
-    availability: (record.availability as Availability) ?? "available_now",
-    available_from: record.available_from,
-    languages: Array.isArray(record.languages) ? record.languages : [],
-    bio: record.bio,
-    contact_number: String(record.contact_number ?? ""),
-    edit_token: String(record.edit_token ?? ""),
-    created: String(record.created ?? new Date().toISOString()),
-  };
+  return recordToTapper({ ...record, photo_url: photo, created_at: record.created });
 }
 
 function pocketBaseFilter(filters: TapperFilters): string {
@@ -224,6 +277,65 @@ async function pocketBaseRequest<T>(path: string, init?: RequestInit): Promise<T
   const response = await fetch(`${POCKETBASE_URL}${path}`, init);
   if (!response.ok) throw new Error(`PocketBase request failed: ${response.status}`);
   return response.json() as Promise<T>;
+}
+
+function supabaseHeaders(headers?: HeadersInit): Headers {
+  if (!SUPABASE_ANON_KEY) throw new Error("Supabase anon key is not configured");
+  const nextHeaders = new Headers(headers);
+  nextHeaders.set("apikey", SUPABASE_ANON_KEY);
+  nextHeaders.set("Authorization", `Bearer ${SUPABASE_ANON_KEY}`);
+  return nextHeaders;
+}
+
+async function supabaseRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  if (!SUPABASE_URL) throw new Error("Supabase URL is not configured");
+  const response = await fetch(`${SUPABASE_URL}${path}`, {
+    ...init,
+    headers: supabaseHeaders(init?.headers),
+  });
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Supabase request failed: ${response.status} ${body}`);
+  }
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
+}
+
+function supabaseTapperQuery(filters: TapperFilters): string {
+  const query = new URLSearchParams({
+    select: SUPABASE_PUBLIC_COLUMNS,
+    order: "created_at.desc",
+    limit: "50",
+  });
+  query.set("availability", filters.availability ? `eq.${filters.availability}` : "neq.not_available");
+  if (filters.district) query.set("district", `eq.${filters.district}`);
+  if (filters.minYears) query.set("years_experience", `gte.${filters.minYears}`);
+  return query.toString();
+}
+
+function supabasePublicPhotoUrl(path: string): string {
+  const safePath = path.split("/").map(encodeURIComponent).join("/");
+  return `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_TAPPER_PHOTO_BUCKET}/${safePath}`;
+}
+
+function cleanFileName(fileName: string): string {
+  return fileName.toLowerCase().replace(/[^a-z0-9.]+/g, "-").replace(/^-|-$/g, "") || "photo";
+}
+
+async function uploadSupabasePhoto(file: File): Promise<{ photoUrl: string; photoPath: string }> {
+  if (!SUPABASE_URL) throw new Error("Supabase URL is not configured");
+  const extension = cleanFileName(file.name).split(".").pop() ?? "jpg";
+  const photoPath = `profiles/${createId("photo")}.${extension}`;
+  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${SUPABASE_TAPPER_PHOTO_BUCKET}/${photoPath}`, {
+    method: "POST",
+    headers: supabaseHeaders({
+      "Content-Type": file.type || "application/octet-stream",
+      "x-upsert": "false",
+    }),
+    body: file,
+  });
+  if (!response.ok) throw new Error(`Photo upload failed: ${response.status}`);
+  return { photoUrl: supabasePublicPhotoUrl(photoPath), photoPath };
 }
 
 function applyFilters(tappers: TapperProfile[], filters: TapperFilters): TapperProfile[] {
@@ -251,6 +363,19 @@ export async function loadOwnedTapper(): Promise<TapperProfile | null> {
   const owner = getOwnedTapper();
   if (!owner) return null;
 
+  if (isSupabaseConfigured()) {
+    try {
+      const record = await supabaseRequest<SupabaseTapperRecord>("/rest/v1/rpc/get_owned_tapper_profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ p_tapper_id: owner.id, p_edit_token: owner.editToken }),
+      });
+      return record?.id ? recordToTapper(record) : null;
+    } catch {
+      return null;
+    }
+  }
+
   if (POCKETBASE_URL) {
     try {
       const record = await pocketBaseRequest<TapperProfile>(`/api/collections/tappers/records/${owner.id}`);
@@ -265,6 +390,16 @@ export async function loadOwnedTapper(): Promise<TapperProfile | null> {
 }
 
 export async function listTappers(filters: TapperFilters = {}): Promise<TapperProfile[]> {
+  if (isSupabaseConfigured()) {
+    try {
+      const records = await supabaseRequest<SupabaseTapperRecord[]>(`/rest/v1/tappers?${supabaseTapperQuery(filters)}`);
+      const remoteTappers = records.map(recordToTapper);
+      return remoteTappers.length ? remoteTappers : applyFilters(seedTappers, filters);
+    } catch {
+      return applyFilters([...localTappers(), ...seedTappers], filters);
+    }
+  }
+
   if (POCKETBASE_URL) {
     try {
       const query = new URLSearchParams({ page: "1", perPage: "50", sort: "-created" });
@@ -281,12 +416,12 @@ export async function listTappers(filters: TapperFilters = {}): Promise<TapperPr
 }
 
 export async function saveTapperProfile(input: TapperProfileInput, existing?: TapperProfile | null): Promise<TapperProfile> {
-  const editToken = existing?.edit_token ?? createId("edit");
-  const photo = input.photoFile ? await toDataUrl(input.photoFile) : existing?.photo;
+  const editToken = existing?.edit_token ?? createToken();
+  const localPhoto = input.photoFile ? await toDataUrl(input.photoFile) : existing?.photo;
   const profile: TapperProfile = {
     id: existing?.id ?? createId("tapper"),
     name: input.name.trim(),
-    photo,
+    photo: localPhoto,
     district: input.district,
     years_experience: input.years_experience,
     tapping_systems: input.tapping_systems,
@@ -299,6 +434,43 @@ export async function saveTapperProfile(input: TapperProfileInput, existing?: Ta
     edit_token: editToken,
     created: existing?.created ?? new Date().toISOString(),
   };
+
+  if (isSupabaseConfigured()) {
+    try {
+      const photoUpload = input.photoFile ? await uploadSupabasePhoto(input.photoFile) : null;
+      const payload = {
+        p_name: profile.name,
+        p_photo_url: photoUpload?.photoUrl ?? existing?.photo ?? null,
+        p_photo_path: photoUpload?.photoPath ?? null,
+        p_district: profile.district,
+        p_years_experience: profile.years_experience,
+        p_tapping_systems: profile.tapping_systems,
+        p_trees_per_day: profile.trees_per_day,
+        p_availability: profile.availability,
+        p_available_from: profile.available_from ?? null,
+        p_languages: profile.languages,
+        p_bio: profile.bio ?? null,
+        p_contact_number: profile.contact_number,
+        p_edit_token: profile.edit_token,
+      };
+      const record = existing && isSupabaseProfileId(existing.id)
+        ? await supabaseRequest<SupabaseTapperRecord>("/rest/v1/rpc/update_tapper_profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ p_tapper_id: existing.id, ...payload }),
+          })
+        : await supabaseRequest<SupabaseTapperRecord>("/rest/v1/rpc/create_tapper_profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+      const saved = recordToTapper(record);
+      rememberOwner(saved.id, saved.edit_token);
+      return saved;
+    } catch {
+      // Fall back to local persistence so the marketplace remains demoable.
+    }
+  }
 
   if (POCKETBASE_URL) {
     try {
@@ -343,6 +515,24 @@ export async function createTapperMatch(tapperId: string): Promise<TapperMatch> 
     tapper_id: tapperId,
     created: new Date().toISOString(),
   };
+
+  if (isSupabaseConfigured() && !tapperId.startsWith("seed-")) {
+    try {
+      const record = await supabaseRequest<TapperMatch>("/rest/v1/rpc/create_tapper_match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ p_tapper_id: tapperId }),
+      });
+      return {
+        id: String(record.id),
+        tapper_id: String(record.tapper_id),
+        created: String(record.created),
+        contact_number: record.contact_number,
+      };
+    } catch {
+      // Local match logging keeps the reveal flow resilient.
+    }
+  }
 
   if (POCKETBASE_URL) {
     try {

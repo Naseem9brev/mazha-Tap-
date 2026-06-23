@@ -86,7 +86,7 @@ Growers can swipe through verified tapper profiles filtered by district, availab
 | Backend | FastAPI · Python 3.14 · Pydantic v2 · Uvicorn |
 | Weather | [Open-Meteo](https://open-meteo.com) — free, no API key |
 | Decision logic | Pure Python rule engine — no ML, no database |
-| Persistence | `localStorage` only — plantation profile never leaves the device |
+| Persistence | Supabase marketplace storage with PocketBase/local demo fallback |
 
 ---
 
@@ -112,6 +112,7 @@ Growers can swipe through verified tapper profiles filtered by district, availab
 - **Swipeable tapper profiles** — browse Kerala tappers filtered by district, availability, and minimum experience
 - **Tapper work cards** — daily tree capacity, languages, tapping methods (conventional, rain-guard, 5/2 d2), availability status
 - **Right swipe to reveal contact** — no intermediary; direct call or WhatsApp
+- **Shared persistence + photos** — Supabase-backed profiles, match logging, and public profile photo storage
 - **Dual role** — same app switches between Grower Mode, Tapper Mode, and Rain Decision tool
 - **Stacked card UI** — Tinder-style card stack with ✕ / contact / → swipe actions
 
@@ -180,10 +181,11 @@ POST /decision/recommend  { plantation: {...}, hourly_forecast: [...] }
 - [x] **Off-season detection** ✨
 - [x] **Latex sale method onboarding + tailored tips** ✨
 - [x] **Tapper Marketplace — swipeable profiles, role switcher** ✨
+- [x] **Shared marketplace persistence + profile photos** ✨
 - [ ] Leaflet interactive map for precise location pin
-- [ ] Offline PWA with cached last forecast
+- [ ] Offline last verdict cache with timestamp/stale warning
 - [ ] Malayalam / English language toggle
-- [ ] Deployment guide (Vercel + Fly.io)
+- [ ] Production deployment + persistent database checklist
 
 ---
 
