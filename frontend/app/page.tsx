@@ -4,6 +4,7 @@ import TinderCard from "react-tinder-card";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Copy, Leaf, Phone, Share2, Sparkles, Sprout, Users, X } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
+import { AuthPanel, useMarketplaceAuth } from "@/components/AuthPanel";
 import { LoadingState } from "@/components/LoadingState";
 import { OnboardingForm } from "@/components/OnboardingForm";
 import { RecommendationCard } from "@/components/RecommendationCard";
@@ -121,6 +122,7 @@ function HeroHeader({ mode, onModeChange }: { mode: AppMode; onModeChange: (mode
 }
 
 function TapperProfileBuilder() {
+  const { auth, setAuth } = useMarketplaceAuth("tapper");
   const [form, setForm] = useState<TapperProfileInput>(defaultTapperInput);
   const [existing, setExisting] = useState<TapperProfile | null>(null);
   const [savedProfile, setSavedProfile] = useState<TapperProfile | null>(null);
@@ -129,6 +131,14 @@ function TapperProfileBuilder() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    if (!auth.user) {
+      setExisting(null);
+      setSavedProfile(null);
+      setForm(defaultTapperInput);
+      setPhotoPreview("");
+      return;
+    }
+
     loadOwnedTapper().then(profile => {
       if (!profile) return;
       setExisting(profile);
@@ -148,7 +158,7 @@ function TapperProfileBuilder() {
         photoFile: null,
       });
     });
-  }, []);
+  }, [auth.user]);
 
   const validation = useMemo(() => validateTapper(form), [form]);
   const shareUrl = savedProfile ? profileShareUrl(savedProfile.id) : "";
@@ -171,11 +181,15 @@ function TapperProfileBuilder() {
       setMessage(validation[0]);
       return;
     }
+    if (!auth.user) {
+      setMessage("Sign in before saving a public work card.");
+      return;
+    }
 
     setIsSaving(true);
     setMessage("");
     try {
-      const profile = await saveTapperProfile(form, existing);
+      const profile = await saveTapperProfile(form, existing, auth.user);
       setExisting(profile);
       setSavedProfile(profile);
       setMessage("Profile saved. Share the public link or keep the edit link for updates.");
@@ -194,8 +208,20 @@ function TapperProfileBuilder() {
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-800">Tapper profile</p>
             <h2 className="font-lora text-3xl font-black text-stone-950">Create a swipe-ready work card</h2>
           </div>
-          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">No login needed</span>
+          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">
+            {auth.user ? "Signed in" : "Login required"}
+          </span>
         </div>
+
+        <AuthPanel
+          role="tapper"
+          auth={auth}
+          title="Tapper login"
+          description="Sign in before creating or editing a public work card so ownership can attach to your tapper profile."
+          cta="Email me a tapper sign-in link"
+          onAuthChange={setAuth}
+          className="mb-5"
+        />
 
         <div className="grid gap-4 md:grid-cols-2">
           <Label title="Name">
@@ -242,10 +268,11 @@ function TapperProfileBuilder() {
         {message && <p className="mt-4 rounded-2xl bg-amber-100 px-4 py-3 text-sm font-semibold text-amber-950">{message}</p>}
 
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <button disabled={isSaving || validation.length > 0} className="rounded-2xl bg-emerald-900 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">
+          <button disabled={isSaving || !auth.user || validation.length > 0} className="rounded-2xl bg-emerald-900 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">
             {isSaving ? "Saving…" : existing ? "Update profile" : "Create profile"}
           </button>
-          {validation.length > 0 && <span className="self-center text-sm font-semibold text-stone-600">{validation[0]}</span>}
+          {!auth.user && <span className="self-center text-sm font-semibold text-stone-600">Sign in to save this card.</span>}
+          {auth.user && validation.length > 0 && <span className="self-center text-sm font-semibold text-stone-600">{validation[0]}</span>}
         </div>
       </form>
 
@@ -280,9 +307,11 @@ function TapperProfileBuilder() {
 }
 
 function GrowerMarketplace() {
+  const { auth, setAuth } = useMarketplaceAuth("grower");
   const [filters, setFilters] = useState<TapperFilters>({ minYears: 0 });
   const [tappers, setTappers] = useState<TapperProfile[]>([]);
   const [matchedTapper, setMatchedTapper] = useState<TapperProfile | null>(null);
+  const [pendingTapper, setPendingTapper] = useState<TapperProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -307,12 +336,32 @@ function GrowerMarketplace() {
   const visibleTappers = useMemo(() => tappers.slice(0, 4).reverse(), [tappers]);
   const activeTapper = tappers[0];
 
-  const handleSwipe = async (direction: SwipeDirection, profile: TapperProfile) => {
+  const completeMatch = useCallback(async (profile: TapperProfile) => {
+    if (!auth.user) return;
+    await createTapperMatch(profile.id, auth.user);
     setTappers(current => current.filter(tapper => tapper.id !== profile.id));
-    if (direction === "right") {
-      await createTapperMatch(profile.id);
-      setMatchedTapper(profile);
+    setMatchedTapper(profile);
+    setPendingTapper(null);
+  }, [auth.user]);
+
+  useEffect(() => {
+    if (auth.user && pendingTapper) {
+      completeMatch(pendingTapper);
     }
+  }, [auth.user, completeMatch, pendingTapper]);
+
+  const handleSwipe = async (direction: SwipeDirection, profile: TapperProfile) => {
+    if (direction === "right" && !auth.user) {
+      setPendingTapper(profile);
+      return;
+    }
+
+    if (direction === "right") {
+      await completeMatch(profile);
+      return;
+    }
+
+    setTappers(current => current.filter(tapper => tapper.id !== profile.id));
   };
 
   return (
@@ -321,6 +370,22 @@ function GrowerMarketplace() {
         <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-800">Grower mode</p>
         <h2 className="mt-2 font-lora text-3xl font-black text-stone-950">Swipe tappers near your holding</h2>
         <p className="mt-2 text-sm leading-6 text-stone-700">Right swipe reveals contact details. Left swipe keeps browsing.</p>
+
+        <AuthPanel
+          role="grower"
+          auth={auth}
+          title="Grower login"
+          description="Sign in before matching so contact details only reveal to authenticated growers."
+          cta="Email me a grower sign-in link"
+          onAuthChange={setAuth}
+          className="mt-5"
+        />
+
+        {pendingTapper && !auth.user && (
+          <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-3 text-sm font-bold text-amber-950">
+            Sign in to match with {pendingTapper.name} and reveal contact details.
+          </p>
+        )}
 
         <div className="mt-5 space-y-3">
           <Label title="District">
@@ -360,7 +425,7 @@ function GrowerMarketplace() {
             <TinderCard
               key={profile.id}
               className="absolute inset-0"
-              preventSwipe={["up", "down"]}
+              preventSwipe={auth.user ? ["up", "down"] : ["up", "down", "right"]}
               onSwipe={direction => handleSwipe(direction as SwipeDirection, profile)}
             >
               <div className={cn("h-full transition", index < visibleTappers.length - 1 && "scale-[0.96] opacity-70")}>

@@ -1,3 +1,5 @@
+import type { MarketplaceActor } from "@/lib/auth";
+
 export const KERALA_DISTRICTS = [
   "Alappuzha",
   "Ernakulam",
@@ -63,6 +65,8 @@ export interface TapperProfile {
   contact_number: string;
   edit_token: string;
   created: string;
+  owner_user_id?: string;
+  owner_provider?: string;
 }
 
 export interface TapperFilters {
@@ -75,6 +79,8 @@ export interface TapperMatch {
   id: string;
   tapper_id: string;
   created: string;
+  grower_user_id?: string;
+  grower_provider?: string;
 }
 
 const PROFILE_KEY = "mazha-tap-tapper-owner";
@@ -208,6 +214,8 @@ function pocketBaseRecordToTapper(record: Partial<TapperProfile> & { collectionI
     contact_number: String(record.contact_number ?? ""),
     edit_token: String(record.edit_token ?? ""),
     created: String(record.created ?? new Date().toISOString()),
+    owner_user_id: record.owner_user_id,
+    owner_provider: record.owner_provider,
   };
 }
 
@@ -280,7 +288,11 @@ export async function listTappers(filters: TapperFilters = {}): Promise<TapperPr
   return applyFilters([...localTappers(), ...seedTappers], filters);
 }
 
-export async function saveTapperProfile(input: TapperProfileInput, existing?: TapperProfile | null): Promise<TapperProfile> {
+export async function saveTapperProfile(
+  input: TapperProfileInput,
+  existing?: TapperProfile | null,
+  owner?: MarketplaceActor
+): Promise<TapperProfile> {
   const editToken = existing?.edit_token ?? createId("edit");
   const photo = input.photoFile ? await toDataUrl(input.photoFile) : existing?.photo;
   const profile: TapperProfile = {
@@ -298,6 +310,8 @@ export async function saveTapperProfile(input: TapperProfileInput, existing?: Ta
     contact_number: input.contact_number.trim(),
     edit_token: editToken,
     created: existing?.created ?? new Date().toISOString(),
+    owner_user_id: owner?.userId ?? existing?.owner_user_id,
+    owner_provider: owner?.provider ?? existing?.owner_provider,
   };
 
   if (POCKETBASE_URL) {
@@ -337,11 +351,13 @@ export async function saveTapperProfile(input: TapperProfileInput, existing?: Ta
   return profile;
 }
 
-export async function createTapperMatch(tapperId: string): Promise<TapperMatch> {
+export async function createTapperMatch(tapperId: string, grower?: MarketplaceActor): Promise<TapperMatch> {
   const match: TapperMatch = {
     id: createId("match"),
     tapper_id: tapperId,
     created: new Date().toISOString(),
+    grower_user_id: grower?.userId,
+    grower_provider: grower?.provider,
   };
 
   if (POCKETBASE_URL) {
@@ -349,7 +365,11 @@ export async function createTapperMatch(tapperId: string): Promise<TapperMatch> 
       return pocketBaseRequest<TapperMatch>("/api/collections/matches/records", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(match),
+        body: JSON.stringify({
+          id: match.id,
+          tapper_id: match.tapper_id,
+          created: match.created,
+        }),
       });
     } catch {
       // Local match logging keeps the reveal flow resilient.
