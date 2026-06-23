@@ -5,9 +5,9 @@
 <br/>
 
 ![Python](https://img.shields.io/badge/Python-3.14-3d7a50?style=flat-square&logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.115-3d7a50?style=flat-square&logo=fastapi&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-15-d6851e?style=flat-square&logo=next.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-d6851e?style=flat-square&logo=typescript&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth%20%2B%20Storage-3ecf8e?style=flat-square&logo=supabase&logoColor=white)
 ![Open-Meteo](https://img.shields.io/badge/Weather-Open--Meteo-5080c8?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-aaaaaa?style=flat-square)
 
@@ -83,10 +83,11 @@ Growers can swipe through verified tapper profiles filtered by district, availab
 |---|---|
 | Frontend | Next.js 15 · React 18 · TypeScript · Tailwind CSS · shadcn/ui |
 | Maps & Location | Nominatim / OpenStreetMap (location search + reverse geocoding) |
-| Backend | FastAPI · Python 3.14 · Pydantic v2 · Uvicorn |
+| App runtime | Vercel-hosted Next.js app |
+| Marketplace data | Supabase Postgres · Auth · Storage |
 | Weather | [Open-Meteo](https://open-meteo.com) — free, no API key |
-| Decision logic | Pure Python rule engine — no ML, no database |
-| Persistence | `localStorage` only — plantation profile never leaves the device |
+| Decision logic | Rule engine surfaced through the Next.js app — no separate FastAPI deploy required |
+| Persistence | Supabase-backed marketplace records; plantation preferences remain browser-local |
 
 ---
 
@@ -126,14 +127,8 @@ Growers can swipe through verified tapper profiles filtered by district, availab
 ## Quick start
 
 ```bash
-# Backend
-cd backend && python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8001
-
-# Frontend (new terminal)
 cd frontend && npm install
-cp .env.local.example .env.local   # set NEXT_PUBLIC_API_URL=http://localhost:8001
+cp .env.local.example .env.local   # set Supabase public URL + anon key
 npm run dev
 ```
 
@@ -141,38 +136,14 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## API
+## Deployment
 
-```
-GET  /health
-GET  /weather/forecast?lat=9.59&lon=76.52&days=2
-POST /decision/recommend  { plantation: {...}, hourly_forecast: [...] }
-```
-
-**`POST /decision/recommend` response includes:**
-```json
-{
-  "recommendation": "tap",
-  "confidence": 88,
-  "headline": "Good conditions — tap today.",
-  "reasoning": ["Rain stays at 12%...", "High humidity noted..."],
-  "next_window": null,
-  "weather_summary": { "tapping_window": "05:00–09:00", ... },
-  "yield_estimate": {
-    "estimated_litres": 20,
-    "tappers_needed": 1,
-    "num_blocks": 1,
-    "off_season": false,
-    "note": "..."
-  }
-}
-```
+Deploy the app as a Vercel Next.js project from the repo root; `vercel.json` runs the frontend install/build scripts. Add the Supabase public URL and anon key to Vercel Preview first, validate the generated preview URL, and only promote to Production after review. See [`DEPLOY.md`](DEPLOY.md) and [`docs/supabase-marketplace.md`](docs/supabase-marketplace.md).
 
 ---
 
 ## Roadmap
 
-- [x] FastAPI backend + Open-Meteo weather proxy
 - [x] Rule-based decision engine
 - [x] Next.js 15 frontend — onboarding, recommendation card, dark mode
 - [x] localStorage persistence, no login required
@@ -180,10 +151,11 @@ POST /decision/recommend  { plantation: {...}, hourly_forecast: [...] }
 - [x] **Off-season detection** ✨
 - [x] **Latex sale method onboarding + tailored tips** ✨
 - [x] **Tapper Marketplace — swipeable profiles, role switcher** ✨
+- [x] Vercel-only deployment path with Supabase-backed marketplace persistence
 - [ ] Leaflet interactive map for precise location pin
 - [ ] Offline PWA with cached last forecast
 - [ ] Malayalam / English language toggle
-- [ ] Deployment guide (Vercel + Fly.io)
+- [ ] Production launch after Vercel preview review
 
 ---
 
