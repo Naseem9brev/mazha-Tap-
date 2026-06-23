@@ -415,7 +415,7 @@ function PublicTapperProfile({ profileId, onBrowse }: { profileId: string; onBro
           <div className="grid h-full place-items-center text-center text-white">
             <div>
               <p className="font-lora text-3xl font-black">Profile not found</p>
-              <p className="mt-2 text-sm text-stone-300">It may be stored only on the tapper’s device until PocketBase is connected.</p>
+              <p className="mt-2 text-sm text-stone-300">It may be stored only on the tapper’s device until Supabase is connected.</p>
             </div>
           </div>
         )}
