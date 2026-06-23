@@ -318,7 +318,12 @@ export async function saveTapperProfile(input: TapperProfileInput, existing?: Ta
 
       if (existing) {
         const ownerClient = getSupabase(existing.edit_token);
-          const { data, error } = await ownerClient.from("tappers").update(row).eq("id", existing.id).select().single();
+        const { data, error } = await ownerClient
+          .from("tappers")
+          .update(row)
+          .eq("id", existing.id)
+          .select()
+          .single();
         if (error) throw error;
         const saved = data as TapperProfile;
         rememberOwner(saved.id, saved.edit_token);
