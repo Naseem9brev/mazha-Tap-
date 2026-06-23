@@ -1,5 +1,8 @@
 # PocketBase marketplace schema
 
+> Legacy note: production marketplace persistence has moved to Supabase. Use `docs/supabase-marketplace.md` for the current Vercel deployment path. This file remains as a historical PocketBase prototype reference.
+
+
 Phase 2 can run in demo mode with browser `localStorage`. Set `NEXT_PUBLIC_POCKETBASE_URL` to use PocketBase for shared persistence.
 
 ## Collections

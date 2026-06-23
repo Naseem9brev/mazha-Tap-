@@ -1,3 +1,5 @@
+import { getCurrentSupabaseUser, getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
+
 export const KERALA_DISTRICTS = [
   "Alappuzha",
   "Ernakulam",
@@ -32,6 +34,8 @@ export const AVAILABILITY_OPTIONS = [
   { value: "not_available", label: "Not available" },
 ] as const;
 
+export const SUPABASE_PHOTO_BUCKET = "tapper-photos";
+
 export type Availability = (typeof AVAILABILITY_OPTIONS)[number]["value"];
 
 export interface TapperProfileInput {
@@ -63,6 +67,7 @@ export interface TapperProfile {
   contact_number: string;
   edit_token: string;
   created: string;
+  owner_id?: string;
 }
 
 export interface TapperFilters {
@@ -75,12 +80,40 @@ export interface TapperMatch {
   id: string;
   tapper_id: string;
   created: string;
+  contact_number?: string;
+}
+
+interface SupabaseTapperRow {
+  id: string;
+  user_id?: string | null;
+  name: string;
+  photo_url?: string | null;
+  district: string;
+  years_experience: number;
+  tapping_systems: string[] | null;
+  trees_per_day: number;
+  availability: Availability;
+  available_from?: string | null;
+  languages: string[] | null;
+  bio?: string | null;
+  contact_number?: string | null;
+  edit_token?: string | null;
+  created_at?: string | null;
+}
+
+interface SupabaseMatchRow {
+  id: string;
+  tapper_id: string;
+  created_at?: string | null;
+}
+
+interface SupabaseMatchReveal extends SupabaseMatchRow {
+  contact_number?: string | null;
 }
 
 const PROFILE_KEY = "mazha-tap-tapper-owner";
 const TAPPERS_KEY = "mazha-tap-marketplace-tappers";
 const MATCHES_KEY = "mazha-tap-marketplace-matches";
-const POCKETBASE_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL?.replace(/\/$/, "");
 
 const seedTappers: TapperProfile[] = [
   {
@@ -188,42 +221,24 @@ function localTappers(): TapperProfile[] {
   return readJson<TapperProfile[]>(TAPPERS_KEY, []);
 }
 
-function pocketBaseRecordToTapper(record: Partial<TapperProfile> & { collectionId?: string; photo?: string }): TapperProfile {
-  const photo = record.photo && POCKETBASE_URL && record.id
-    ? `${POCKETBASE_URL}/api/files/tappers/${record.id}/${record.photo}`
-    : record.photo;
-
+function mapTapperRow(row: SupabaseTapperRow): TapperProfile {
   return {
-    id: String(record.id ?? ""),
-    name: String(record.name ?? ""),
-    photo,
-    district: String(record.district ?? ""),
-    years_experience: Number(record.years_experience ?? 0),
-    tapping_systems: Array.isArray(record.tapping_systems) ? record.tapping_systems : [],
-    trees_per_day: Number(record.trees_per_day ?? 0),
-    availability: (record.availability as Availability) ?? "available_now",
-    available_from: record.available_from,
-    languages: Array.isArray(record.languages) ? record.languages : [],
-    bio: record.bio,
-    contact_number: String(record.contact_number ?? ""),
-    edit_token: String(record.edit_token ?? ""),
-    created: String(record.created ?? new Date().toISOString()),
+    id: row.id,
+    name: row.name,
+    photo: row.photo_url ?? "",
+    district: row.district,
+    years_experience: row.years_experience,
+    tapping_systems: row.tapping_systems ?? [],
+    trees_per_day: row.trees_per_day,
+    availability: row.availability,
+    available_from: row.available_from ?? undefined,
+    languages: row.languages ?? [],
+    bio: row.bio ?? undefined,
+    contact_number: row.contact_number ?? "",
+    edit_token: row.edit_token ?? "",
+    created: row.created_at ?? new Date().toISOString(),
+    owner_id: row.user_id ?? undefined,
   };
-}
-
-function pocketBaseFilter(filters: TapperFilters): string {
-  const clauses: string[] = [];
-  if (filters.district) clauses.push(`district = "${filters.district}"`);
-  if (filters.availability) clauses.push(`availability = "${filters.availability}"`);
-  if (filters.minYears) clauses.push(`years_experience >= ${filters.minYears}`);
-  return clauses.join(" && ");
-}
-
-async function pocketBaseRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!POCKETBASE_URL) throw new Error("PocketBase URL is not configured");
-  const response = await fetch(`${POCKETBASE_URL}${path}`, init);
-  if (!response.ok) throw new Error(`PocketBase request failed: ${response.status}`);
-  return response.json() as Promise<T>;
 }
 
 function applyFilters(tappers: TapperProfile[], filters: TapperFilters): TapperProfile[] {
@@ -239,54 +254,40 @@ function rememberOwner(id: string, editToken: string): void {
   writeJson(PROFILE_KEY, { id, editToken });
 }
 
-export function getOwnedTapper(): { id: string; editToken: string } | null {
-  return readJson<{ id: string; editToken: string } | null>(PROFILE_KEY, null);
+function buildSupabaseProfile(input: TapperProfileInput, existing: TapperProfile | null, userId: string, photoUrl?: string): Omit<SupabaseTapperRow, "id" | "created_at"> {
+  return {
+    user_id: userId,
+    name: input.name.trim(),
+    photo_url: photoUrl ?? existing?.photo ?? null,
+    district: input.district,
+    years_experience: input.years_experience,
+    tapping_systems: input.tapping_systems,
+    trees_per_day: input.trees_per_day,
+    availability: input.availability,
+    available_from: input.availability === "available_from" ? input.available_from ?? null : null,
+    languages: input.languages,
+    bio: input.bio?.trim() ?? "",
+    contact_number: input.contact_number.trim(),
+    edit_token: existing?.edit_token ?? createId("edit"),
+  };
 }
 
-export function claimTapperProfile(id: string, editToken: string): void {
-  rememberOwner(id, editToken);
+async function uploadTapperPhoto(file: File, userId: string): Promise<string> {
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error("Supabase is not configured");
+  const extension = file.name.split(".").pop()?.replace(/[^a-zA-Z0-9]/g, "") || "jpg";
+  const fileId = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now());
+  const path = `${userId}/${fileId}.${extension}`;
+  const { error } = await supabase.storage.from(SUPABASE_PHOTO_BUCKET).upload(path, file, { upsert: true });
+  if (error) throw new Error(error.message);
+  return supabase.storage.from(SUPABASE_PHOTO_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
-export async function loadOwnedTapper(): Promise<TapperProfile | null> {
-  const owner = getOwnedTapper();
-  if (!owner) return null;
-
-  if (POCKETBASE_URL) {
-    try {
-      const record = await pocketBaseRequest<TapperProfile>(`/api/collections/tappers/records/${owner.id}`);
-      const tapper = pocketBaseRecordToTapper(record);
-      return tapper.edit_token === owner.editToken ? tapper : null;
-    } catch {
-      return null;
-    }
-  }
-
-  return localTappers().find(tapper => tapper.id === owner.id && tapper.edit_token === owner.editToken) ?? null;
-}
-
-export async function listTappers(filters: TapperFilters = {}): Promise<TapperProfile[]> {
-  if (POCKETBASE_URL) {
-    try {
-      const query = new URLSearchParams({ page: "1", perPage: "50", sort: "-created" });
-      const filter = pocketBaseFilter(filters);
-      if (filter) query.set("filter", filter);
-      const data = await pocketBaseRequest<{ items: TapperProfile[] }>(`/api/collections/tappers/records?${query.toString()}`);
-      return data.items.map(pocketBaseRecordToTapper).filter(tapper => tapper.availability !== "not_available");
-    } catch {
-      return applyFilters([...localTappers(), ...seedTappers], filters);
-    }
-  }
-
-  return applyFilters([...localTappers(), ...seedTappers], filters);
-}
-
-export async function saveTapperProfile(input: TapperProfileInput, existing?: TapperProfile | null): Promise<TapperProfile> {
-  const editToken = existing?.edit_token ?? createId("edit");
-  const photo = input.photoFile ? await toDataUrl(input.photoFile) : existing?.photo;
+async function saveLocalTapper(input: TapperProfileInput, existing?: TapperProfile | null): Promise<TapperProfile> {
   const profile: TapperProfile = {
     id: existing?.id ?? createId("tapper"),
     name: input.name.trim(),
-    photo,
+    photo: input.photoFile ? await toDataUrl(input.photoFile) : existing?.photo,
     district: input.district,
     years_experience: input.years_experience,
     tapping_systems: input.tapping_systems,
@@ -296,39 +297,9 @@ export async function saveTapperProfile(input: TapperProfileInput, existing?: Ta
     languages: input.languages,
     bio: input.bio?.trim(),
     contact_number: input.contact_number.trim(),
-    edit_token: editToken,
+    edit_token: existing?.edit_token ?? createId("edit"),
     created: existing?.created ?? new Date().toISOString(),
   };
-
-  if (POCKETBASE_URL) {
-    try {
-      const body = new FormData();
-      body.set("name", profile.name);
-      body.set("district", profile.district);
-      body.set("years_experience", String(profile.years_experience));
-      body.set("tapping_systems", JSON.stringify(profile.tapping_systems));
-      body.set("trees_per_day", String(profile.trees_per_day));
-      body.set("availability", profile.availability);
-      if (profile.available_from) body.set("available_from", profile.available_from);
-      body.set("languages", JSON.stringify(profile.languages));
-      body.set("bio", profile.bio ?? "");
-      body.set("contact_number", profile.contact_number);
-      body.set("edit_token", profile.edit_token);
-      if (input.photoFile) body.set("photo", input.photoFile);
-
-      const method = existing ? "PATCH" : "POST";
-      const path = existing
-        ? `/api/collections/tappers/records/${existing.id}`
-        : "/api/collections/tappers/records";
-      const record = await pocketBaseRequest<TapperProfile>(path, { method, body });
-      const saved = pocketBaseRecordToTapper(record);
-      rememberOwner(saved.id, saved.edit_token);
-      return saved;
-    } catch {
-      // Fall back to local persistence so the marketplace remains demoable.
-    }
-  }
-
   const next = existing
     ? localTappers().map(tapper => (tapper.id === existing.id ? profile : tapper))
     : [profile, ...localTappers()];
@@ -337,25 +308,136 @@ export async function saveTapperProfile(input: TapperProfileInput, existing?: Ta
   return profile;
 }
 
+export function getOwnedTapper(): { id: string; editToken: string } | null {
+  return readJson<{ id: string; editToken: string } | null>(PROFILE_KEY, null);
+}
+
+export function claimTapperProfile(id: string, editToken: string): void {
+  rememberOwner(id, editToken);
+}
+
+export async function loadOwnedTapper(): Promise<TapperProfile | null> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    const user = await getCurrentSupabaseUser();
+    if (!supabase || !user) return null;
+    const { data, error } = await supabase
+      .from("tappers")
+      .select("id,user_id,name,photo_url,district,years_experience,tapping_systems,trees_per_day,availability,available_from,languages,bio,contact_number,edit_token,created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const rows = (data ?? []) as SupabaseTapperRow[];
+    if (error || !rows.length) return null;
+    return mapTapperRow(rows[0]);
+  }
+
+  const owner = getOwnedTapper();
+  if (!owner) return null;
+  return localTappers().find(tapper => tapper.id === owner.id && tapper.edit_token === owner.editToken) ?? null;
+}
+
+export async function listTappers(filters: TapperFilters = {}): Promise<TapperProfile[]> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      let query = supabase
+        .from("tappers")
+        .select("id,user_id,name,photo_url,district,years_experience,tapping_systems,trees_per_day,availability,available_from,languages,bio,created_at")
+        .neq("availability", "not_available")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (filters.district) query = query.eq("district", filters.district);
+      if (filters.availability) query = query.eq("availability", filters.availability);
+      if (filters.minYears) query = query.gte("years_experience", filters.minYears);
+      const { data, error } = await query;
+      if (!error && data) return (data as SupabaseTapperRow[]).map(mapTapperRow);
+    }
+  }
+
+  return applyFilters([...localTappers(), ...seedTappers], filters);
+}
+
+export async function saveTapperProfile(input: TapperProfileInput, existing?: TapperProfile | null): Promise<TapperProfile> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    const user = await getCurrentSupabaseUser();
+    if (!supabase || !user) throw new Error("Sign in before saving your tapper profile.");
+
+    const photoUrl = input.photoFile ? await uploadTapperPhoto(input.photoFile, user.id) : undefined;
+    const profile = buildSupabaseProfile(input, existing ?? null, user.id, photoUrl);
+    const query = existing?.id
+      ? supabase
+          .from("tappers")
+          .update(profile)
+          .eq("id", existing.id)
+          .eq("user_id", user.id)
+          .select("id,user_id,name,photo_url,district,years_experience,tapping_systems,trees_per_day,availability,available_from,languages,bio,contact_number,edit_token,created_at")
+          .single()
+      : supabase
+          .from("tappers")
+          .insert(profile)
+          .select("id,user_id,name,photo_url,district,years_experience,tapping_systems,trees_per_day,availability,available_from,languages,bio,contact_number,edit_token,created_at")
+          .single();
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error("Supabase did not return the saved tapper profile");
+    const saved = mapTapperRow(data as SupabaseTapperRow);
+    rememberOwner(saved.id, saved.edit_token);
+    return saved;
+  }
+
+  return saveLocalTapper(input, existing);
+}
+
 export async function createTapperMatch(tapperId: string): Promise<TapperMatch> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    const user = await getCurrentSupabaseUser();
+    if (!supabase || !user) throw new Error("Sign in as a grower before revealing contact details.");
+
+    const rpc = await supabase.rpc("match_tapper", { tapper_record_id: tapperId });
+    const reveal = rpc.data as SupabaseMatchReveal | null;
+    if (!rpc.error && reveal) {
+      return {
+        id: reveal.id,
+        tapper_id: reveal.tapper_id,
+        created: reveal.created_at ?? new Date().toISOString(),
+        contact_number: reveal.contact_number ?? undefined,
+      };
+    }
+
+    const { data, error } = await supabase
+      .from("matches")
+      .insert({ tapper_id: tapperId, grower_id: user.id })
+      .select("id,tapper_id,created_at")
+      .single();
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error("Supabase did not return the saved match");
+    const savedMatch = data as SupabaseMatchRow;
+
+    const contact = await supabase
+      .from("tappers")
+      .select("contact_number")
+      .eq("id", tapperId)
+      .single();
+    const contactRow = contact.data as Pick<SupabaseTapperRow, "contact_number"> | null;
+
+    return {
+      id: savedMatch.id,
+      tapper_id: savedMatch.tapper_id,
+      created: savedMatch.created_at ?? new Date().toISOString(),
+      contact_number: contactRow?.contact_number ?? undefined,
+    };
+  }
+
   const match: TapperMatch = {
     id: createId("match"),
     tapper_id: tapperId,
     created: new Date().toISOString(),
+    contact_number: [...localTappers(), ...seedTappers].find(tapper => tapper.id === tapperId)?.contact_number,
   };
-
-  if (POCKETBASE_URL) {
-    try {
-      return pocketBaseRequest<TapperMatch>("/api/collections/matches/records", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(match),
-      });
-    } catch {
-      // Local match logging keeps the reveal flow resilient.
-    }
-  }
-
   writeJson(MATCHES_KEY, [match, ...readJson<TapperMatch[]>(MATCHES_KEY, [])]);
   return match;
 }

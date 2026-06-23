@@ -83,10 +83,10 @@ Growers can swipe through verified tapper profiles filtered by district, availab
 |---|---|
 | Frontend | Next.js 15 · React 18 · TypeScript · Tailwind CSS · shadcn/ui |
 | Maps & Location | Nominatim / OpenStreetMap (location search + reverse geocoding) |
-| Backend | FastAPI · Python 3.14 · Pydantic v2 · Uvicorn |
+| App/API | Next.js 15 · Vercel route handlers · TypeScript |
 | Weather | [Open-Meteo](https://open-meteo.com) — free, no API key |
-| Decision logic | Pure Python rule engine — no ML, no database |
-| Persistence | `localStorage` only — plantation profile never leaves the device |
+| Decision logic | TypeScript rule engine ported from the original FastAPI prototype — no ML |
+| Persistence | Supabase Auth · Postgres · Storage for marketplace; localStorage fallback for demos |
 
 ---
 
@@ -111,8 +111,8 @@ Growers can swipe through verified tapper profiles filtered by district, availab
 ### Phase 3 — Tapper Marketplace ✨
 - **Swipeable tapper profiles** — browse Kerala tappers filtered by district, availability, and minimum experience
 - **Tapper work cards** — daily tree capacity, languages, tapping methods (conventional, rain-guard, 5/2 d2), availability status
-- **Right swipe to reveal contact** — no intermediary; direct call or WhatsApp
-- **Dual role** — same app switches between Grower Mode, Tapper Mode, and Rain Decision tool
+- **Login + right swipe to reveal contact** — grower accounts match before direct call or WhatsApp
+- **Dual role** — same app switches between logged-in Grower Mode, Tapper Mode, and Rain Decision tool
 - **Stacked card UI** — Tinder-style card stack with ✕ / contact / → swipe actions
 
 ### Frontend
@@ -126,14 +126,9 @@ Growers can swipe through verified tapper profiles filtered by district, availab
 ## Quick start
 
 ```bash
-# Backend
-cd backend && python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8001
-
-# Frontend (new terminal)
-cd frontend && npm install
-cp .env.local.example .env.local   # set NEXT_PUBLIC_API_URL=http://localhost:8001
+cd frontend
+npm install
+cp .env.local.example .env.local   # add Supabase vars for login/shared marketplace
 npm run dev
 ```
 
@@ -144,12 +139,11 @@ Open [http://localhost:3000](http://localhost:3000)
 ## API
 
 ```
-GET  /health
-GET  /weather/forecast?lat=9.59&lon=76.52&days=2
-POST /decision/recommend  { plantation: {...}, hourly_forecast: [...] }
+GET  /api/weather/forecast?lat=9.59&lon=76.52&days=2
+POST /api/decision/recommend  { plantation: {...}, hourly_forecast: [...] }
 ```
 
-**`POST /decision/recommend` response includes:**
+**`POST /api/decision/recommend` response includes:**
 ```json
 {
   "recommendation": "tap",
@@ -172,10 +166,10 @@ POST /decision/recommend  { plantation: {...}, hourly_forecast: [...] }
 
 ## Roadmap
 
-- [x] FastAPI backend + Open-Meteo weather proxy
+- [x] Vercel API routes + Open-Meteo weather proxy
 - [x] Rule-based decision engine
 - [x] Next.js 15 frontend — onboarding, recommendation card, dark mode
-- [x] localStorage persistence, no login required
+- [x] Supabase-backed marketplace login, profiles, matches, and local demo fallback
 - [x] **Yield & labour estimator** ✨
 - [x] **Off-season detection** ✨
 - [x] **Latex sale method onboarding + tailored tips** ✨
@@ -183,7 +177,7 @@ POST /decision/recommend  { plantation: {...}, hourly_forecast: [...] }
 - [ ] Leaflet interactive map for precise location pin
 - [ ] Offline PWA with cached last forecast
 - [ ] Malayalam / English language toggle
-- [ ] Deployment guide (Vercel + Fly.io)
+- [x] Deployment guide (Vercel preview + Supabase)
 
 ---
 

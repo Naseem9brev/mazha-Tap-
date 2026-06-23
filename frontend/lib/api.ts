@@ -1,4 +1,9 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+
+function apiEndpoint(path: string): string {
+  if (!API_BASE) return path;
+  return `${API_BASE}${path.replace(/^\/api/, "")}`;
+}
 
 export interface PlantationProfile {
   latitude: number;
@@ -38,6 +43,11 @@ export interface YieldEstimate {
   off_season_note: string | null;
 }
 
+export interface DecisionRequest {
+  plantation: PlantationProfile;
+  hourly_forecast: HourlyPoint[];
+}
+
 export interface DecisionResponse {
   recommendation: "tap" | "dont_tap" | "delay";
   confidence: number;
@@ -55,7 +65,7 @@ export interface DecisionResponse {
 }
 
 export async function fetchForecast(lat: number, lon: number): Promise<HourlyPoint[]> {
-  const res = await fetch(`${API_BASE}/weather/forecast?lat=${lat}&lon=${lon}&days=2`);
+  const res = await fetch(apiEndpoint(`/api/weather/forecast?lat=${lat}&lon=${lon}&days=2`));
   if (!res.ok) throw new Error(`Weather fetch failed: ${res.status}`);
   const data = await res.json();
   return data.hourly as HourlyPoint[];
@@ -65,7 +75,7 @@ export async function fetchDecision(
   plantation: PlantationProfile,
   hourly_forecast: HourlyPoint[]
 ): Promise<DecisionResponse> {
-  const res = await fetch(`${API_BASE}/decision/recommend`, {
+  const res = await fetch(apiEndpoint("/api/decision/recommend"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ plantation, hourly_forecast }),

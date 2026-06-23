@@ -2,7 +2,8 @@
 
 import TinderCard from "react-tinder-card";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Copy, Leaf, Phone, Share2, Sparkles, Sprout, Users, X } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
+import { ChevronRight, Copy, Leaf, Phone, Share2, Sparkles, Sprout, Users, X } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { OnboardingForm } from "@/components/OnboardingForm";
@@ -24,6 +25,7 @@ import {
 } from "@/lib/marketplace";
 import type { Availability, TapperFilters, TapperProfile, TapperProfileInput } from "@/lib/marketplace";
 import { clearPlantation, loadPlantation } from "@/lib/storage";
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 type AppMode = "grower" | "tapper" | "rain" | "profile";
@@ -42,6 +44,95 @@ const defaultTapperInput: TapperProfileInput = {
   contact_number: "",
   photoFile: null,
 };
+
+function useSupabaseAuth() {
+  const [user, setUser] = useState<User | null>(null);
+  const [isReady, setIsReady] = useState(!isSupabaseConfigured());
+
+  useEffect(() => {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      setIsReady(true);
+      return;
+    }
+
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      setIsReady(true);
+    });
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setIsReady(true);
+    });
+
+    return () => subscription.subscription.unsubscribe();
+  }, []);
+
+  return {
+    user,
+    isReady,
+    isConfigured: isSupabaseConfigured(),
+    isAuthenticated: !isSupabaseConfigured() || Boolean(user),
+  };
+}
+
+function AuthPanel({ role }: { role: "grower" | "tapper" }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return (
+      <div className="rounded-3xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+        Supabase env vars are not configured yet, so this preview runs in local demo mode. Production will require login before saving profiles or revealing contact details.
+      </div>
+    );
+  }
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setMessage("");
+    const credentials = { email, password };
+    const result = await supabase.auth.signInWithPassword(credentials);
+    if (result.error) {
+      const signUp = await supabase.auth.signUp(credentials);
+      setMessage(signUp.error ? signUp.error.message : "Check your email to confirm the account, then sign in.");
+    } else {
+      setMessage(`Signed in as ${role}.`);
+    }
+    setIsSubmitting(false);
+  };
+
+  return (
+    <form onSubmit={submit} className="rounded-3xl border border-emerald-200 bg-emerald-50 p-4">
+      <p className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-900">{role} login required</p>
+      <div className="mt-3 grid gap-2">
+        <input type="email" required value={email} onChange={event => setEmail(event.target.value)} className="input bg-white" placeholder="Email" />
+        <input type="password" required minLength={6} value={password} onChange={event => setPassword(event.target.value)} className="input bg-white" placeholder="Password" />
+        <button type="submit" disabled={isSubmitting} className="rounded-full bg-emerald-900 px-4 py-3 text-sm font-black text-white disabled:opacity-60">
+          {isSubmitting ? "Signing in…" : "Sign in / create account"}
+        </button>
+      </div>
+      {message && <p className="mt-3 text-sm font-semibold text-emerald-950">{message}</p>}
+    </form>
+  );
+}
+
+function AccountStrip({ user }: { user: User | null }) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !user) return null;
+  return (
+    <div className="mb-4 flex flex-col gap-2 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950 sm:flex-row sm:items-center sm:justify-between">
+      <span className="font-bold">Signed in as {user.email}</span>
+      <button type="button" onClick={() => supabase.auth.signOut()} className="rounded-full bg-white px-4 py-2 text-xs font-black text-emerald-950">
+        Sign out
+      </button>
+    </div>
+  );
+}
 
 export default function Home() {
   const [mode, setMode] = useState<AppMode>("grower");
@@ -127,8 +218,10 @@ function TapperProfileBuilder() {
   const [photoPreview, setPhotoPreview] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const auth = useSupabaseAuth();
 
   useEffect(() => {
+    if (!auth.isReady) return;
     loadOwnedTapper().then(profile => {
       if (!profile) return;
       setExisting(profile);
@@ -148,7 +241,7 @@ function TapperProfileBuilder() {
         photoFile: null,
       });
     });
-  }, []);
+  }, [auth.isReady, auth.user]);
 
   const validation = useMemo(() => validateTapper(form), [form]);
   const shareUrl = savedProfile ? profileShareUrl(savedProfile.id) : "";
@@ -167,6 +260,10 @@ function TapperProfileBuilder() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!auth.isAuthenticated) {
+      setMessage("Sign in before saving your tapper profile.");
+      return;
+    }
     if (validation.length) {
       setMessage(validation[0]);
       return;
@@ -189,12 +286,14 @@ function TapperProfileBuilder() {
   return (
     <section className="grid flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
       <form onSubmit={handleSubmit} className="rounded-[2rem] border border-white/80 bg-white/80 p-5 shadow-xl backdrop-blur sm:p-6">
+        <AccountStrip user={auth.user} />
+        {!auth.isAuthenticated && <div className="mb-4"><AuthPanel role="tapper" /></div>}
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-800">Tapper profile</p>
             <h2 className="font-lora text-3xl font-black text-stone-950">Create a swipe-ready work card</h2>
           </div>
-          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">No login needed</span>
+          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">Login protected</span>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -285,6 +384,8 @@ function GrowerMarketplace() {
   const [matchedTapper, setMatchedTapper] = useState<TapperProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [matchMessage, setMatchMessage] = useState("");
+  const auth = useSupabaseAuth();
 
   const loadTappers = useCallback(async () => {
     setIsLoading(true);
@@ -308,19 +409,32 @@ function GrowerMarketplace() {
   const activeTapper = tappers[0];
 
   const handleSwipe = async (direction: SwipeDirection, profile: TapperProfile) => {
-    setTappers(current => current.filter(tapper => tapper.id !== profile.id));
     if (direction === "right") {
-      await createTapperMatch(profile.id);
-      setMatchedTapper(profile);
+      if (!auth.isAuthenticated) {
+        setMatchMessage("Sign in as a grower before revealing contact details.");
+        return;
+      }
+      try {
+        const match = await createTapperMatch(profile.id);
+        setMatchedTapper(match.contact_number ? { ...profile, contact_number: match.contact_number } : profile);
+        setMatchMessage("");
+      } catch (matchError) {
+        setMatchMessage(matchError instanceof Error ? matchError.message : "Could not create match");
+        return;
+      }
     }
+    setTappers(current => current.filter(tapper => tapper.id !== profile.id));
   };
 
   return (
     <section className="grid flex-1 gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
       <aside className="rounded-[2rem] border border-white/80 bg-white/80 p-5 shadow-xl backdrop-blur">
+        <AccountStrip user={auth.user} />
+        {!auth.isAuthenticated && <div className="mb-4"><AuthPanel role="grower" /></div>}
         <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-800">Grower mode</p>
         <h2 className="mt-2 font-lora text-3xl font-black text-stone-950">Swipe tappers near your holding</h2>
-        <p className="mt-2 text-sm leading-6 text-stone-700">Right swipe reveals contact details. Left swipe keeps browsing.</p>
+        <p className="mt-2 text-sm leading-6 text-stone-700">Sign in, then right swipe to match and reveal contact details. Left swipe keeps browsing.</p>
+        {matchMessage && <p className="mt-4 rounded-2xl bg-amber-100 px-4 py-3 text-sm font-bold text-amber-950">{matchMessage}</p>}
 
         <div className="mt-5 space-y-3">
           <Label title="District">
@@ -415,7 +529,7 @@ function PublicTapperProfile({ profileId, onBrowse }: { profileId: string; onBro
           <div className="grid h-full place-items-center text-center text-white">
             <div>
               <p className="font-lora text-3xl font-black">Profile not found</p>
-              <p className="mt-2 text-sm text-stone-300">It may be stored only on the tapper’s device until PocketBase is connected.</p>
+              <p className="mt-2 text-sm text-stone-300">It may be stored only on the tapper’s device until Supabase is connected.</p>
             </div>
           </div>
         )}
@@ -474,7 +588,7 @@ function TapperCard({ profile, showContact }: { profile: TapperProfile; showCont
         </div>
 
         <div className="mt-auto pt-5">
-          {showContact ? (
+          {showContact && profile.contact_number ? (
             <div className="rounded-2xl bg-emerald-950 p-4 text-white">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-200">Match made</p>
               <a href={`tel:${profile.contact_number}`} className="mt-1 block text-xl font-black">{profile.contact_number}</a>
@@ -494,16 +608,23 @@ function TapperCard({ profile, showContact }: { profile: TapperProfile; showCont
 }
 
 function MatchReveal({ profile }: { profile: TapperProfile }) {
+  const hasContact = Boolean(profile.contact_number);
   return (
     <div className="mt-5 rounded-[1.5rem] bg-emerald-950 p-4 text-white shadow-xl">
       <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-200">New match</p>
       <h3 className="mt-1 font-lora text-2xl font-black">{profile.name}</h3>
-      <p className="mt-2 text-sm text-emerald-50">Contact is now visible because you swiped right.</p>
-      <a href={`tel:${profile.contact_number}`} className="mt-3 block text-xl font-black text-amber-100">{profile.contact_number}</a>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <a href={`tel:${profile.contact_number}`} className="rounded-full bg-white px-4 py-2 text-sm font-black text-emerald-950">Call</a>
-        <a href={`https://wa.me/${profile.contact_number.replace(/\D/g, "")}`} className="rounded-full bg-amber-400 px-4 py-2 text-sm font-black text-stone-950">WhatsApp</a>
-      </div>
+      <p className="mt-2 text-sm text-emerald-50">
+        {hasContact ? "Contact is now visible because you swiped right." : "Match saved. Supabase contact reveal needs the match_tapper RPC or matching RLS policy."}
+      </p>
+      {hasContact && (
+        <>
+          <a href={`tel:${profile.contact_number}`} className="mt-3 block text-xl font-black text-amber-100">{profile.contact_number}</a>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <a href={`tel:${profile.contact_number}`} className="rounded-full bg-white px-4 py-2 text-sm font-black text-emerald-950">Call</a>
+            <a href={`https://wa.me/${profile.contact_number.replace(/\D/g, "")}`} className="rounded-full bg-amber-400 px-4 py-2 text-sm font-black text-stone-950">WhatsApp</a>
+          </div>
+        </>
+      )}
     </div>
   );
 }
